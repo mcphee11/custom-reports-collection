@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<!-- Created as an example by https://github.com/mcphee11 Version 4.1 -->
+<html>
+  <head>
+    <meta name="robots" content="noindex" />
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title></title>
+    <meta name="Template" content="" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Genesys CSS https://spark.genesys.com/ In PROD set a version https://www.jsdelivr.com/package/npm/genesys-spark-components -->
+    <link no-cors href="https://cdn.jsdelivr.net/npm/genesys-spark-components@4.138.2/dist/genesys-webcomponents/genesys-webcomponents.min.css" rel="stylesheet" />
+    <script no-cors type="module" src="https://cdn.jsdelivr.net/npm/genesys-spark-components@4.138.2/dist/genesys-webcomponents/genesys-webcomponents.esm.min.js"></script>
+    <!-- Genesys SDK info https://developer.genesys.cloud/  In PROD set a version -->
+    <script src="https://sdk-cdn.mypurecloud.com/javascript/latest/purecloud-platform-client-v2.min.js"></script>
+    <script src="https://sdk-cdn.mypurecloud.com/client-apps/2.6.7/purecloud-client-app-sdk.js"></script>
+  </head>
+  <body onload="start()">
+    <div style="display: inline-flex">
+      <gux-dropdown filter-type="starts-with" placeholder="UTC-00:00" id="timeZone" style="width: 150px; padding: 8px">
+        <gux-listbox aria-label="Time Zone">
+          <gux-option value="-12:00">UTC-12:00</gux-option><gux-option value="-11:00">UTC-11:00</gux-option><gux-option value="-10:00">UTC-10:00</gux-option
+          ><gux-option value="-09:30">UTC-09:30</gux-option><gux-option value="-09:00">UTC-09:00</gux-option><gux-option value="-08:00">UTC-08:00</gux-option
+          ><gux-option value="-07:00">UTC-07:00</gux-option><gux-option value="-06:00">UTC-06:00</gux-option><gux-option value="-05:00">UTC-05:00</gux-option
+          ><gux-option value="-04:00">UTC-04:00</gux-option><gux-option value="-03:30">UTC-03:30</gux-option><gux-option value="-03:00">UTC-03:00</gux-option
+          ><gux-option value="-02:00">UTC-02:00</gux-option><gux-option value="-01:00">UTC-01:00</gux-option><gux-option value="-00:00">UTC+00:00</gux-option
+          ><gux-option value="+00:00">UTC+00:00</gux-option><gux-option value="+01:00">UTC+01:00</gux-option><gux-option value="+02:00">UTC+02:00</gux-option
+          ><gux-option value="+03:00">UTC+03:00</gux-option><gux-option value="+03:30">UTC+03:30</gux-option><gux-option value="+04:00">UTC+04:00</gux-option
+          ><gux-option value="+04:30">UTC+04:30</gux-option><gux-option value="+05:00">UTC+05:00</gux-option><gux-option value="+05:30">UTC+05:30</gux-option
+          ><gux-option value="+05:45">UTC+05:45</gux-option><gux-option value="+06:00">UTC+06:00</gux-option><gux-option value="+06:30">UTC+06:30</gux-option
+          ><gux-option value="+07:00">UTC+07:00</gux-option><gux-option value="+08:00">UTC+08:00</gux-option><gux-option value="+08:45">UTC+08:45</gux-option
+          ><gux-option value="+09:00">UTC+09:00</gux-option><gux-option value="+09:30">UTC+09:30</gux-option><gux-option value="+10:00">UTC+10:00</gux-option
+          ><gux-option value="+10:30">UTC+10:30</gux-option><gux-option value="+11:00">UTC+11:00</gux-option><gux-option value="+12:00">UTC+12:00</gux-option
+          ><gux-option value="+12:45">UTC+12:45</gux-option><gux-option value="+13:00">UTC+13:00</gux-option><gux-option value="+14:00">UTC+14:00</gux-option>
+        </gux-listbox>
+      </gux-dropdown>
+      <gux-datepicker id="datepicker" style="padding: 8px" mode="range" value="" number-of-months="2"></gux-datepicker>
+      <gux-button style="padding: 8px" accent="secondary" onclick="thisMonth()">This Month</gux-button>
+      <gux-button style="padding: 8px" accent="secondary" onclick="last30days()">Last 30 Days</gux-button>
+      <gux-button style="padding: 8px" accent="primary" onclick="getData()">Search</gux-button>
+      <gux-button style="padding: 8px" accent="secondary" onclick="clearData()">Clear</gux-button>
+      <gux-button id="download" style="padding: 8px; display: none" accent="ghost" onclick="buildCsv()">Download</gux-button>
+    </div>
+    <div></div>
+    <div id="spinner" style="justify-self: center; padding: 8px; display: none">
+      <gux-radial-loading id="loading" class="loading" screenreader-text="Loading..."></gux-radial-loading>
+    </div>
+    <div id="tableLocation" style="padding: 8px"></div>
+    <script>
+      'use strict' //Enables strict mode is JavaScript
+      let url = new URL(document.location.href)
+      let gc_region = url.searchParams.get('gc_region')
+      let gc_clientId = url.searchParams.get('gc_clientId')
+      let gc_redirectUrl = url.searchParams.get('gc_redirectUrl')
+      let csvRows = []
+
+      //Getting and setting the GC details from dynamic URL and session storage
+      gc_region ? sessionStorage.setItem('gc_region', gc_region) : (gc_region = sessionStorage.getItem('gc_region'))
+      gc_clientId ? sessionStorage.setItem('gc_clientId', gc_clientId) : (gc_clientId = sessionStorage.getItem('gc_clientId'))
+      gc_redirectUrl ? sessionStorage.setItem('gc_redirectUrl', gc_redirectUrl) : (gc_redirectUrl = sessionStorage.getItem('gc_redirectUrl'))
+
+      let platformClient = require('platformClient')
+      const client = platformClient.ApiClient.instance
+      const capi = new platformClient.ConversationsApi()
+      const eapi = new platformClient.TelephonyProvidersEdgeApi()
+
+      // Configure Client App
+      const ClientApp = window.purecloud.apps.ClientApp
+      const myClientApp = new ClientApp({
+        pcEnvironment: gc_region,
+      })
+
+      async function start() {
+        try {
+          client.setEnvironment(gc_region)
+          client.setPersistSettings(true, '_mm_')
+
+          console.log('%cLogging in to Genesys Cloud', 'color: green')
+          await client.loginPKCEGrant(gc_clientId, gc_redirectUrl, {})
+          getUTCOffset()
+          thisMonth()
+          // getData() // Uncomment this line to get data on load
+        } catch (err) {
+          console.log('Error: ', err)
+        }
+      }
+
+      function last30days() {
+        let today = new Date()
+        let aMonthAgo = new Date()
+        aMonthAgo.setMonth(aMonthAgo.getMonth() - 1)
+        // prettier-ignore
+        document.getElementById('datepicker').value = `${aMonthAgo.getFullYear()}-${String(aMonthAgo.getMonth() + 1).padStart(2, '0')}-${String(aMonthAgo.getDate()).padStart(2,'0')}/${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+      }
+
+      function thisMonth() {
+        let today = new Date()
+        // prettier-ignore
+        document.getElementById('datepicker').value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01/${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2,'0')}-${String(today.getDate()).padStart(2, '0')}`
+      }
+
+      function getUTCOffset() {
+        const now = new Date()
+        const offsetMinutes = now.getTimezoneOffset()
+        const offsetHours = -offsetMinutes / 60 // Invert for standard UTC offset representation
+
+        let offsetString = ''
+        if (offsetHours === 0) {
+          offsetString = '+00:00'
+        } else {
+          const sign = offsetHours > 0 ? '+' : '-'
+          const absHours = Math.abs(Math.floor(offsetHours))
+          const minutes = Math.abs(Math.floor((offsetHours - absHours) * 60))
+          const hoursString = absHours.toString().padStart(2, '0')
+          const minutesString = minutes.toString().padStart(2, '0')
+          offsetString = `${sign}${hoursString}:${minutesString}`
+        }
+        document.getElementById('timeZone').value = offsetString
+      }
+
+      // download csv
+      function buildCsv() {
+        let csvContent = 'data:text/csv;charset=utf-8,' + csvRows.map((e) => e.join(',')).join('\r\n')
+        const encodedUri = encodeURI(csvContent)
+        const link = document.createElement('a')
+        link.setAttribute('href', encodedUri)
+        link.setAttribute('download', 'report.csv')
+        document.body.appendChild(link)
+        link.click()
+      }
+
+      async function clearData() {
+        console.log('%cClearing data', 'color: green')
+        document.getElementById('tableLocation').innerHTML = ''
+        document.getElementById('spinner').style.display = 'none'
+        document.getElementById('download').style.display = 'none'
+        csvRows = []
+      }
+
+      function notification(type, message) {
+        if (window.location !== window.parent.location) {
+          // if in an iframe
+          myClientApp.alerting.showToastPopup(type, message)
+          return
+        }
+        window.alert(message)
+        return
+      }
+
+      function convertMillisecondsToTime(milliseconds) {
+        const totalMinutes = milliseconds / (1000 * 60)
+        const hours = Math.floor(totalMinutes / 60)
+        const remainingMinutes = Math.floor(totalMinutes % 60)
+        const remainingSeconds = Math.round((totalMinutes - hours * 60 - remainingMinutes) * 60)
+
+        let timeString = ''
+        if (hours > 0) {
+          timeString += `${hours}h `
+        }
+        timeString += `${remainingMinutes}m ${remainingSeconds}s`
+        return timeString
+      }
+
+      // dynamic table creation
+      async function buildTableRows(rows) {
+        for (const row of rows) {
+          let tableBody = document.getElementById('tableBody')
+          if (!tableBody) {
+            // create the top table row if its not already there
+            console.log('Creating table')
+            let top = document.getElementById('tableLocation')
+            let guxTable = document.createElement('gux-table')
+            let table = document.createElement('table')
+            let header = document.createElement('thead')
+            let headerRow = document.createElement('tr')
+            let tbody = document.createElement('tbody')
+
+            headerRow.setAttribute('data-row-id', 'head')
+            tbody.setAttribute('id', 'tableBody')
+            table.setAttribute('slot', 'data')
+            guxTable.setAttribute('resizable-columns', '')
+
+            header.appendChild(headerRow)
+            guxTable.appendChild(table)
+            table.appendChild(header)
+            table.appendChild(tbody)
+
+            // create column names on first row
+            for (const item of row) {
+              let th = document.createElement('th')
+              th.setAttribute('data-column-name', item)
+              th.style.textWrap = 'auto'
+              th.innerHTML = item
+              th.title = item
+              headerRow.appendChild(th)
+            }
+            top.appendChild(guxTable)
+            continue
+          }
+          if (tableBody) {
+            // add data to the row
+            let tr = document.createElement('tr')
+            for (const item of row) {
+              let column = document.createElement('td')
+              column.innerHTML = item
+              tr.appendChild(column)
+            }
+            tableBody.appendChild(tr)
+          }
+        }
+      }
+
+      async function getData() {
+        console.log('%cGetting data', 'color: green')
+        csvRows = []
+        document.getElementById('tableLocation').innerHTML = ''
+        document.getElementById('spinner').style.display = 'block'
+        // TODO: ENTER IN YOUR CODE HERE (EXAMPLE WITH PAGINATION)
+        let pageNumber = 1
+        try {
+          // get conversations grouped by dnis
+          const conversations = await getConversations(pageNumber)
+          console.log('Conversations page1: ', conversations)
+          if (conversations.totalHits > 100) {
+            while (pageNumber < Math.ceil(conversations.totalHits / 100)) {
+              pageNumber++
+              const nextConversations = await getConversations(pageNumber)
+              conversations.conversations = conversations.conversations.concat(nextConversations.conversations)
+            }
+          }
+
+          // get dids
+          let pageNumberDids = 1
+          const dids = await getDidPage(pageNumberDids)
+          console.log('DIDs page1: ', dids)
+          if (dids.total > 100) {
+            while (pageNumberDids < Math.ceil(dids.total / 100)) {
+              pageNumberDids++
+              const nextDids = await getDidPage(pageNumberDids)
+              dids.entities = dids.entities.concat(nextDids.entities)
+            }
+          }
+
+          // get pools
+          let pageNumberPools = 1
+          const pool = await getDidPoolPage(pageNumberPools)
+          console.log('Pool page1: ', pool)
+          if (pool.total > 100) {
+            while (pageNumberPools < Math.ceil(pool.total / 100)) {
+              pageNumberPools++
+              const nextPool = await getDidPage(pageNumberPools)
+              pool.entities = pool.entities.concat(nextPool.entities)
+            }
+          }
+
+          for (const conv of conversations.results) {
+            // add the column names to the first row
+            if (csvRows.length === 0) {
+              csvRows.push(['DNIS'])
+              csvRows[0].push('Comment')
+              csvRows[0].push('Interval')
+              csvRows[0].push('Offered')
+              csvRows[0].push('Answered %')
+              csvRows[0].push('Abandoned %')
+              csvRows[0].push('Abandon')
+              csvRows[0].push('Abandoned - No Short %')
+              csvRows[0].push('Abandoned - No Short')
+              csvRows[0].push('Max Abandon')
+              csvRows[0].push('Avg Abandon')
+              csvRows[0].push('Max Wait')
+              csvRows[0].push('Avg Wait')
+              csvRows[0].push('Max Talk')
+              csvRows[0].push('Avg Talk')
+              csvRows[0].push('Avg Hold')
+              csvRows[0].push('Avg ACW')
+              csvRows[0].push('Avg Handle')
+              csvRows[0].push('Service Level %')
+              /*for (const metric of metrics) {
+                csvRows[0].push(metric)
+              }*/
+            }
+
+            let foundName = pool.entities.find((d) => d.startPhoneNumber === conv.group.dnis.substring(4, conv.group.dnis.length))
+            const nConnected = conv.data[0].metrics.find((m) => m.metric === 'nConnected')
+            const nOffered = conv.data[0].metrics.find((m) => m.metric === 'nOffered')
+            const tAnswered = conv.data[0].metrics.find((m) => m.metric === 'tAnswered')
+            const tAbandon = conv.data[0].metrics.find((m) => m.metric === 'tAbandon')
+            const tFlowOut = conv.data[0].metrics.find((m) => m.metric === 'tFlowOut')
+            const oServiceLevel = conv.data[0].metrics.find((m) => m.metric === 'oServiceLevel')
+            const tWait = conv.data[0].metrics.find((m) => m.metric === 'tWait')
+            const tHandle = conv.data[0].metrics.find((m) => m.metric === 'tHandle')
+            const tIvr = conv.data[0].metrics.find((m) => m.metric === 'tIvr')
+            const tTalkComplete = conv.data[0].metrics.find((m) => m.metric === 'tTalkComplete')
+            const tHeldComplete = conv.data[0].metrics.find((m) => m.metric === 'tHeldComplete')
+            const tAcw = conv.data[0].metrics.find((m) => m.metric === 'tAcw')
+            const nTransferred = conv.data[0].metrics.find((m) => m.metric === 'nTransferred')
+            const nOverSla = conv.data[0].metrics.find((m) => m.metric === 'nOverSla')
+            const tShortAbandon = conv.data[0].metrics.find((m) => m.metric === 'tShortAbandon')
+            const tVoicemail = conv.data[0].metrics.find((m) => m.metric === 'tVoicemail')
+
+            // add the data to the rows in order of columns
+            csvRows.push([conv.group.dnis]) // dnis
+            csvRows[csvRows.length - 1].push(foundName?.comments ? foundName.comments : 'Blank') // name
+            // prettier-ignore
+            csvRows[csvRows.length - 1].push(`${new Date(conv.data[0].interval.split('/')[0]).toLocaleString().replace(',', ' ')} / ${new Date(conv.data[0].interval.split('/')[1]).toLocaleString().replace(',', ' ')}`) // interval
+
+            // how to get calculations search 'dnis': https://help.mypurecloud.com/articles/consolidated-view-of-available-columns-in-performance-views/
+            csvRows[csvRows.length - 1].push(nOffered ? nOffered.stats.count : 0) //offered ✅
+            csvRows[csvRows.length - 1].push(nOffered && tAnswered ? ((tAnswered.stats.count / nOffered.stats.count) * 100).toFixed(2) : 0) //answered % ✅
+            csvRows[csvRows.length - 1].push(nOffered && tAbandon ? ((tAbandon.stats.count / nOffered.stats.count) * 100).toFixed(2) : 0) // abandoned % ✅
+            csvRows[csvRows.length - 1].push(tAbandon ? tAbandon.stats.count : 0) // abandon ✅
+            csvRows[csvRows.length - 1].push(nOffered && tShortAbandon && tAbandon ? (((tAbandon.stats.count - tShortAbandon.stats.count) / nOffered.stats.count) * 100).toFixed(2) : 0) // abandoned - no short % ✅
+            csvRows[csvRows.length - 1].push(tShortAbandon && tAbandon ? tAbandon.stats.count - tShortAbandon.stats.count : 0) // abandoned - no short ✅
+            csvRows[csvRows.length - 1].push(tAbandon ? convertMillisecondsToTime(tAbandon.stats.max) : 0) // max abandon ✅
+            csvRows[csvRows.length - 1].push(tAbandon ? convertMillisecondsToTime(tAbandon.stats.sum / tAbandon.stats.count) : 0) // avg abandon ✅
+            csvRows[csvRows.length - 1].push(tWait ? convertMillisecondsToTime(tWait.stats.max) : 0) // max wait ✅
+            csvRows[csvRows.length - 1].push(tWait ? convertMillisecondsToTime(tWait.stats.sum / tWait.stats.count) : 0) // avg wait ✅
+            csvRows[csvRows.length - 1].push(tTalkComplete ? convertMillisecondsToTime(tTalkComplete.stats.max) : 0) // max talk ✅
+            csvRows[csvRows.length - 1].push(tTalkComplete ? convertMillisecondsToTime(tTalkComplete.stats.sum / tTalkComplete.stats.count) : 0) // avg talk ✅
+            csvRows[csvRows.length - 1].push(tHeldComplete ? convertMillisecondsToTime(tHeldComplete.stats.sum / tHeldComplete.stats.count) : 0) // avg hold ✅
+            csvRows[csvRows.length - 1].push(tAcw ? convertMillisecondsToTime(tAcw.stats.sum / tAcw.stats.count) : 0) // avg acw ✅
+            csvRows[csvRows.length - 1].push(tHandle ? convertMillisecondsToTime(tHandle.stats.sum / tHandle.stats.count) : 0) // avg handle ✅
+            csvRows[csvRows.length - 1].push(oServiceLevel ? oServiceLevel.stats.numerator : 0) // service level %
+          }
+          console.log(csvRows)
+          await buildTableRows(csvRows)
+          document.getElementById('spinner').style.display = 'none'
+          document.getElementById('download').style.display = 'block'
+        } catch (err) {
+          console.log('Error: ', err)
+          notification('Error', `Error: ${err}`)
+        }
+      }
+
+      const metrics = [
+        'nConnected',
+        'nOffered',
+        'tAnswered',
+        'tAbandon',
+        'tFlowOut',
+        'oServiceLevel',
+        'tWait',
+        'tHandle',
+        'tIvr',
+        'tTalkComplete',
+        'tHeldComplete',
+        'tAcw',
+        'nTransferred',
+        'nOverSla',
+        'tShortAbandon',
+        'tVoicemail',
+      ]
+
+      async function getConversations(pageNumber) {
+        // TODO: your query
+        // ------------- EXAMPLE ------------------
+        let conversations = await capi.postAnalyticsConversationsAggregatesQuery({
+          filter: {
+            type: 'and',
+            clauses: [
+              {
+                type: 'and',
+                predicates: [
+                  { dimension: 'mediaType', value: 'voice' },
+                  { dimension: 'direction', value: 'inbound' },
+                  { dimension: 'dnis', operator: 'exists' },
+                ],
+              },
+            ],
+          },
+          metrics: metrics,
+          groupBy: ['dnis'],
+          interval: `${document.getElementById('datepicker').value.split('/')[0]}T00:00:00${document.getElementById('timeZone').value}/${
+            document.getElementById('datepicker').value.split('/')[1]
+          }T23:59:59${document.getElementById('timeZone').value}`,
+        })
+        // ------------- EXAMPLE ------------------
+        return conversations
+      }
+
+      async function getDidPage(pageNumber) {
+        let dids = await eapi.getTelephonyProvidersEdgesDids({
+          pageSize: 100,
+          pageNumber: pageNumber,
+          sortBy: 'number',
+          sortOrder: 'ASC',
+        })
+        return dids
+      }
+
+      async function getDidPoolPage(pageNumber) {
+        let pool = await eapi.getTelephonyProvidersEdgesDidpools({
+          pageSize: 100,
+          pageNumber: pageNumber,
+          sortBy: 'number',
+        })
+        return pool
+      }
+    </script>
+  </body>
+</html>
