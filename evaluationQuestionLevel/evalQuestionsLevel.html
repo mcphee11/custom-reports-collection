@@ -205,6 +205,7 @@
             let tr = document.createElement('tr')
             for (const item of row) {
               let column = document.createElement('td')
+              column.style.textWrap = 'auto'
               column.innerHTML = item
               tr.appendChild(column)
             }
@@ -285,6 +286,7 @@
                   questionId: questionScore.questionId,
                   questionGroupId: question.questionGroupId,
                   score: questionScore.score,
+                  comment: questionScore?.comments ? questionScore.comments : '',
                 }
                 questionScores.push(score)
               }
@@ -307,19 +309,23 @@
               csvRows[0].push('Release Date')
               csvRows[0].push('Conversation ID')
               csvRows[0].push('Agent Reviewed')
+              csvRows[0].push('Total Score')
               for (const question of questionScores) {
                 csvRows[0].push(question.name)
+                csvRows[0].push('Comment')
               }
             }
             // add the data to the row
             csvRows.push([evaluation.agent.name])
             csvRows[csvRows.length - 1].push(evaluation.evaluator.name)
             csvRows[csvRows.length - 1].push(new Date(evaluation.conversationDate).toLocaleString().replace(',', ' '))
-            csvRows[csvRows.length - 1].push(new Date(evaluation.releaseDate).toLocaleString().replace(',', ' '))
+            csvRows[csvRows.length - 1].push(`<gux-button onclick="openConversationId('${conv.group.conversationId}')">Open</gux-button>`)
             csvRows[csvRows.length - 1].push(conv.group.conversationId)
             csvRows[csvRows.length - 1].push(evaluation.agentHasRead)
+            csvRows[csvRows.length - 1].push(evaluation.answers.totalScore)
             for (const question of questionScores) {
               csvRows[csvRows.length - 1].push(question.score)
+              csvRows[csvRows.length - 1].push(question.comment)
             }
           }
           console.log(csvRows)
@@ -330,6 +336,16 @@
           console.log('Error: ', err)
           notification('Error', `Error: ${err}`)
         }
+      }
+
+      function openConversationId(conversationId) {
+        if (window.location !== window.parent.location) {
+          // if in an iframe (Genesys Cloud)
+          myClientApp.conversations.showInteractionDetails(conversationId)
+          return
+        }
+        window.open(`https://apps.${gc_region}/directory/#/analytics/interactions/${conversationId}/admin/details`, '_blank')
+        return
       }
 
       async function getEvaluations(pageNumber, value) {
