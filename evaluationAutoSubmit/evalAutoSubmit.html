@@ -53,6 +53,10 @@
         <gux-listbox id="groupIdList" aria-label="Group Name"> </gux-listbox>
       </gux-dropdown>
       <gux-form-field-checkbox style="padding: 8px; align-self: center">
+        <input id="missingAnswers" slot="input" type="checkbox" checked />
+        <label slot="label">Include Missing Answers</label>
+      </gux-form-field-checkbox>
+      <gux-form-field-checkbox style="padding: 8px; align-self: center">
         <input id="release" slot="input" type="checkbox" checked />
         <label slot="label">Never Release</label>
       </gux-form-field-checkbox>
@@ -394,7 +398,7 @@
             if (csvRows.length === 0) {
               csvRows.push(['Agent'])
               csvRows[0].push('Evaluator')
-              csvRows[0].push('Conversation Date')
+              csvRows[0].push('Assignment Date')
               csvRows[0].push('Open')
               csvRows[0].push('Conversation ID')
               csvRows[0].push('Agent Reviewed')
@@ -406,13 +410,20 @@
             // add the data to the row
             csvRows.push([evaluation.agent.name])
             csvRows[csvRows.length - 1].push(evaluation.evaluator.name)
-            csvRows[csvRows.length - 1].push(new Date(evaluation.conversationDate).toLocaleString().replace(',', ' '))
+            csvRows[csvRows.length - 1].push(new Date(evaluation.assignedDate).toLocaleString().replace(',', ' '))
             csvRows[csvRows.length - 1].push(`<gux-button onclick="openConversationId('${conv.conversation.id}')">Open</gux-button>`)
             csvRows[csvRows.length - 1].push(conv.conversation.id)
             csvRows[csvRows.length - 1].push(evaluation.agentHasRead)
             for (const question of questionScores) {
               csvRows[csvRows.length - 1].push(question.score)
               csvRows[csvRows.length - 1].push(question.aiAnswer)
+              if (!document.getElementById('missingAnswers').checked) {
+                if (question.score == 'NO AI SCORE') {
+                  // skip this row if missing answers is not checked
+                  csvRows.pop()
+                  break
+                }
+              }
             }
           }
           console.log(csvRows)
