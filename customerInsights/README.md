@@ -19,6 +19,12 @@ This is designed to show Customer Insights in a similar way to the ccportal repo
 - Interactions Per Day
 - Users Per Day
 
+- flows used
+- queues used
+- skills used
+
 ## Deploy
 
 To deploy this example follow the README on the main repo page [here](/README.md)
+
+As the JS was getting beyond 1000 lines i decided to put it into its own file to assist with LSP as well as have a `build.sh` file that will use [terser]() to minify and uglify the file then insert it back into the single html file.

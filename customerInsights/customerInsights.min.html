@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<!-- Created as an example by https://github.com/mcphee11 Version 4.1 -->
+<html>
+
+<head>
+  <meta name="robots" content="noindex" />
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title></title>
+  <meta name="Template" content="" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Genesys CSS https://spark.genesys.com/ In PROD set a version https://www.jsdelivr.com/package/npm/genesys-spark-components -->
+  <link no-cors
+    href="https://cdn.jsdelivr.net/npm/genesys-spark-components@4.138.2/dist/genesys-webcomponents/genesys-webcomponents.min.css"
+    rel="stylesheet" />
+  <script no-cors type="module"
+    src="https://cdn.jsdelivr.net/npm/genesys-spark-components@4.138.2/dist/genesys-webcomponents/genesys-webcomponents.esm.min.js"></script>
+  <!-- Genesys SDK info https://developer.genesys.cloud/  In PROD set a version -->
+  <script src="https://sdk-cdn.mypurecloud.com/javascript/latest/purecloud-platform-client-v2.min.js"></script>
+  <script src="https://sdk-cdn.mypurecloud.com/client-apps/2.6.7/purecloud-client-app-sdk.js"></script>
+  <!-- custom charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+  <div style="display: inline-flex" class="header">
+    <gux-dropdown filter-type="starts-with" placeholder="UTC-00:00" id="timeZone" style="width: 150px; padding: 8px">
+      <gux-listbox aria-label="Time Zone">
+        <gux-option value="-12:00">UTC-12:00</gux-option><gux-option value="-11:00">UTC-11:00</gux-option><gux-option
+          value="-10:00">UTC-10:00</gux-option><gux-option value="-09:30">UTC-09:30</gux-option><gux-option
+          value="-09:00">UTC-09:00</gux-option><gux-option value="-08:00">UTC-08:00</gux-option><gux-option
+          value="-07:00">UTC-07:00</gux-option><gux-option value="-06:00">UTC-06:00</gux-option><gux-option
+          value="-05:00">UTC-05:00</gux-option><gux-option value="-04:00">UTC-04:00</gux-option><gux-option
+          value="-03:30">UTC-03:30</gux-option><gux-option value="-03:00">UTC-03:00</gux-option><gux-option
+          value="-02:00">UTC-02:00</gux-option><gux-option value="-01:00">UTC-01:00</gux-option><gux-option
+          value="-00:00">UTC+00:00</gux-option><gux-option value="+00:00">UTC+00:00</gux-option><gux-option
+          value="+01:00">UTC+01:00</gux-option><gux-option value="+02:00">UTC+02:00</gux-option><gux-option
+          value="+03:00">UTC+03:00</gux-option><gux-option value="+03:30">UTC+03:30</gux-option><gux-option
+          value="+04:00">UTC+04:00</gux-option><gux-option value="+04:30">UTC+04:30</gux-option><gux-option
+          value="+05:00">UTC+05:00</gux-option><gux-option value="+05:30">UTC+05:30</gux-option><gux-option
+          value="+05:45">UTC+05:45</gux-option><gux-option value="+06:00">UTC+06:00</gux-option><gux-option
+          value="+06:30">UTC+06:30</gux-option><gux-option value="+07:00">UTC+07:00</gux-option><gux-option
+          value="+08:00">UTC+08:00</gux-option><gux-option value="+08:45">UTC+08:45</gux-option><gux-option
+          value="+09:00">UTC+09:00</gux-option><gux-option value="+09:30">UTC+09:30</gux-option><gux-option
+          value="+10:00">UTC+10:00</gux-option><gux-option value="+10:30">UTC+10:30</gux-option><gux-option
+          value="+11:00">UTC+11:00</gux-option><gux-option value="+12:00">UTC+12:00</gux-option><gux-option
+          value="+12:45">UTC+12:45</gux-option><gux-option value="+13:00">UTC+13:00</gux-option><gux-option
+          value="+14:00">UTC+14:00</gux-option>
+      </gux-listbox>
+    </gux-dropdown>
+    <gux-datepicker id="datepicker" style="padding: 8px" mode="range" value="" number-of-months="2"></gux-datepicker>
+    <gux-button style="padding: 8px" accent="secondary" onclick="thisMonth()">This Month</gux-button>
+    <gux-button style="padding: 8px" accent="secondary" onclick="last30days()">Last 30 Days</gux-button>
+    <gux-button style="padding: 8px" accent="primary" onclick="getData()">Search</gux-button>
+    <gux-button style="padding: 8px" accent="secondary" onclick="clearData()">Clear</gux-button>
+    <gux-button id="download" style="padding: 8px; display: none" accent="ghost"
+      onclick="buildPDF()">Download</gux-button>
+  </div>
+  <div id="spinner" style="padding: 50px; display: none; position: fixed; justify-self: anchor-center">
+    <gux-radial-loading id="loading" class="loading" screenreader-text="Loading..."></gux-radial-loading>
+  </div>
+  <gux-card accent="raised" class="mm-card">
+    <h2>Customer Insights Report</h2>
+    <p id="createdDate">Created on:</p>
+    <div style="display: inline-flex; width: 100%; height: 200px">
+      <div>
+        <p>Organization:</p>
+        <p id="orgName"></p>
+        <p>Org ID:</p>
+        <p id="orgId"></p>
+        <p>Region:</p>
+        <p id="region"></p>
+      </div>
+      <div style="margin-left: 50%">
+        <p>StartDate:</p>
+        <p id="startDate"></p>
+        <p>endDate:</p>
+        <p id="endDate"></p>
+        <p>Total API Requests:</p>
+        <p id="totalAPIs"></p>
+      </div>
+    </div>
+  </gux-card>
+  <gux-card accent="raised" class="mm-card">
+    <h2>Mean Opinion Score (MOS)</h2>
+    <p>
+      MOS is a measure of audio quality at a specific measurement point of a voice interaction. Potential measurement
+      points are on-premise or cloud-based Edge devices. Values in the MOS column are
+      estimated average MOS scores. The estimated average MOS score for a stream is based on codec type, average jitter,
+      latency, and packet loss. Each MOS score is a number between 1 (unacceptable)
+      and 5 (excellent). Scores below 3.5 generally indicate unacceptable quality. Scores between 4.3 and 5 indicate
+      high quality.
+    </p>
+    <p>MOS is not measured for every interaction.</p>
+    <p id="mosLabel" class="mm-center"></p>
+  </gux-card>
+  <gux-card accent="raised" class="mm-card">
+    <h2>R-Factor</h2>
+    <p>
+      The R-Factor is value derived from metrics such as latency, jitter, and packet loss per ITU‑T Recommendation
+      G.107, the R-Factor value helps you quickly assess the quality-of-experience for
+      VoIP calls on your network. Typical scores range from 50 (bad) to 90 (excellent).
+    </p>
+    <p>R-Factor is not available for every interaction.</p>
+    <p id="rFactorLabel" class="mm-center"></p>
+  </gux-card>
+  <gux-card accent="raised" class="mm-card">
+    <h2>Inbound Connected Interactions</h2>
+    <div style="display: flex; align-items: center; justify-content: center">
+      <div style="width: 70%">
+        <canvas id="incomingMediaTypes" class="mm-chart"></canvas>
+      </div>
+      <div id="inboundTable" class="mm-table"></div>
+    </div>
+  </gux-card>
+  <gux-card accent="raised" class="mm-card">
+    <h2>Outbound Connected Interactions</h2>
+    <div style="display: flex; align-items: center; justify-content: center">
+      <div style="width: 70%">
+        <canvas id="outgoingMediaTypes" class="mm-chart"></canvas>
+      </div>
+      <div id="outboundTable" class="mm-table"></div>
+    </div>
+  </gux-card>
+  <gux-card accent="raised" class="mm-card">
+    <h2>Recordings</h2>
+    <div style="display: flex; align-items: center; justify-content: center">
+      <div style="width: 70%">
+        <canvas id="recordings" class="mm-chart"></canvas>
+      </div>
+      <div id="recordingsTable" class="mm-table"></div>
+    </div>
+  </gux-card>
+  <gux-card accent="raised" class="mm-card">
+    <h2>Calls Per Day</h2>
+    <canvas id="callsPerDay" class="mm-chart"></canvas>
+  </gux-card>
+  <gux-card accent="raised" class="mm-card">
+    <h2>Emails Per Day</h2>
+    <canvas id="emailsPerDay" class="mm-chart"></canvas>
+  </gux-card>
+  <gux-card accent="raised" class="mm-card">
+    <h2>Messages Per Day</h2>
+    <canvas id="messagesPerDay" class="mm-chart"></canvas>
+  </gux-card>
+  <gux-card accent="raised" class="mm-card">
+    <h2>Callbacks Per Day</h2>
+    <canvas id="callbacksPerDay" class="mm-chart"></canvas>
+  </gux-card>
+  <gux-card accent="raised" class="mm-card">
+    <h2>Interactions Per Day</h2>
+    <canvas id="interactionsPerDay" class="mm-chart"></canvas>
+  </gux-card>
+  <gux-card accent="raised" class="mm-card">
+    <h2>Users Per Day</h2>
+    <canvas id="usersPerDay" class="mm-chart"></canvas>
+  </gux-card>
+  <gux-card accent="raised" class="mm-card">
+    <h2>Organization usage</h2>
+    <p>This section shows which features are used in the organization as well as the license required to use this
+      feature.</p>
+    <p>Data is based on date range selected</p>
+    <h3>Flow usage:</h3>
+    <div id="flowUsage" class="mm-chart"></div>
+    <h3>Routing usage:</h3>
+    <div id="routingUsage" class="mm-chart"></div>
+    <h3>Object metrics:</h3>
+    <div id="objectUsage" class="mm-chart"></div>
+  </gux-card>
+  <script>
+"use strict";let url=new URL(document.location.href),gc_region=url.searchParams.get("gc_region"),gc_clientId=url.searchParams.get("gc_clientId"),gc_redirectUrl=url.searchParams.get("gc_redirectUrl"),globalApiRequests=0;gc_region?sessionStorage.setItem("gc_region",gc_region):gc_region=sessionStorage.getItem("gc_region"),gc_clientId?sessionStorage.setItem("gc_clientId",gc_clientId):gc_clientId=sessionStorage.getItem("gc_clientId"),gc_redirectUrl?sessionStorage.setItem("gc_redirectUrl",gc_redirectUrl):gc_redirectUrl=sessionStorage.getItem("gc_redirectUrl");let platformClient=require("platformClient");const client=platformClient.ApiClient.instance,capi=new platformClient.ConversationsApi,uapi=new platformClient.UsersApi,oapi=new platformClient.OrganizationApi,aapi=new platformClient.ArchitectApi,fapi=new platformClient.FlowsApi,rapi=new platformClient.RoutingApi,ClientApp=window.purecloud.apps.ClientApp,myClientApp=new ClientApp({pcEnvironment:gc_region});async function start(){try{client.setEnvironment(gc_region),client.setPersistSettings(!0,"_mm_"),console.log("%cLogging in to Genesys Cloud","color: green"),await client.loginPKCEGrant(gc_clientId,gc_redirectUrl,{}),getUTCOffset(),thisMonth()}catch(e){console.log("Error: ",e)}}function last30days(){let e=new Date,t=new Date;t.setMonth(t.getMonth()-1),document.getElementById("datepicker").value=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,"0")}-${String(t.getDate()).padStart(2,"0")}/${e.getFullYear()}-${String(e.getMonth()+1).padStart(2,"0")}-${String(e.getDate()).padStart(2,"0")}`}function thisMonth(){let e=new Date;document.getElementById("datepicker").value=`${e.getFullYear()}-${String(e.getMonth()+1).padStart(2,"0")}-01/${e.getFullYear()}-${String(e.getMonth()+1).padStart(2,"0")}-${String(e.getDate()).padStart(2,"0")}`}function getUTCOffset(){const e=-(new Date).getTimezoneOffset()/60;let t="";if(0===e)t="+00:00";else{const n=e>0?"+":"-",a=Math.abs(Math.floor(e)),o=Math.abs(Math.floor(60*(e-a)));t=`${n}${a.toString().padStart(2,"0")}:${o.toString().padStart(2,"0")}`}document.getElementById("timeZone").value=t}function buildPDF(){window.print()}async function clearData(){console.log("%cClearing data","color: green");let e=document.getElementsByClassName("mm-center"),t=document.getElementsByClassName("mm-chart"),n=document.getElementsByClassName("mm-table");for(const t of e)t.innerHTML="";for(const e of t)e.innerHTML="";for(const e of n)e.innerHTML="";document.getElementById("createdDate").innerHTML="Created on: ",document.getElementById("orgName").innerHTML="",document.getElementById("orgId").innerHTML="",document.getElementById("region").innerHTML="",document.getElementById("startDate").innerHTML="",document.getElementById("endDate").innerHTML="",document.getElementById("totalAPIs").innerHTML="",document.getElementById("spinner").style.display="none",document.getElementById("download").style.display="none",globalApiRequests=0}function notification(e,t){window.location===window.parent.location?window.alert(t):myClientApp.alerting.showToastPopup(e,t)}async function buildTableRows(e,t,n){for(const a of n){let n=document.getElementById(t);if(n){if(n){let e=0,t=document.createElement("tr");for(const n of a){let a=document.createElement("td");0!=e&&(a.style.textAlign="center"),"🔴"===n&&(a.style.fontSize=".6em"),a.innerHTML=n,t.appendChild(a),e++}n.appendChild(t)}}else{console.log("Creating table");let n=document.getElementById(e),o=document.createElement("gux-table"),i=document.createElement("table"),l=document.createElement("thead"),s=document.createElement("tr"),r=document.createElement("tbody");s.setAttribute("data-row-id","head"),r.setAttribute("id",t),i.setAttribute("slot","data"),o.setAttribute("resizable-columns",""),l.appendChild(s),o.appendChild(i),i.appendChild(l),i.appendChild(r);for(const e of a){let t=document.createElement("th");t.setAttribute("data-column-name",e),t.style.textWrap="auto",t.innerHTML=e,t.title=e,s.appendChild(t)}n.appendChild(o)}}}async function setReportData(){let e=new Date;document.getElementById("createdDate").innerHTML=`Created on: <strong>${e}</strong>`;const t=await oapi.getOrganizationsMe();globalApiRequests++,document.getElementById("orgName").innerHTML=`<strong>${t.name}</strong>`,document.getElementById("orgId").innerHTML=`<strong>${t.id}</strong>`,document.getElementById("region").innerHTML=`<strong>${gc_region}</strong>`,document.getElementById("startDate").innerHTML=`<strong>${document.getElementById("datepicker").value.split("/")[0]}T00:00:00${document.getElementById("timeZone").value}</strong>`,document.getElementById("endDate").innerHTML=`<strong>${document.getElementById("datepicker").value.split("/")[1]}T23:59:59${document.getElementById("timeZone").value}</strong>`}async function getData(){console.log("%cGetting data","color: green"),clearData(),document.getElementById("spinner").style.display="block";try{await setReportData(),await mosAndRFactor();let e=await mediaTypeTotals("inbound");console.log("%cInbound Media Types: ","color: green",e),buildColumnChart("incomingMediaTypes","Inbound Interactions",[{key:"Voice",count:e.voice?.length||0},{key:"Message",count:e.message?.length||0},{key:"Email",count:e.email?.length||0},{key:"Callback",count:e.callback?.length||0}]),buildTableRows("inboundTable","inboundTableName",[["Media","Interactions"],["Voice",e.voice?.length||0],["Message",e.message?.length||0],["Email",e.email?.length||0],["Callback",e.callback?.length||0]]);let t=await mediaTypeTotals("outbound");console.log("%cOutbound Media Types: ","color: green",t),buildColumnChart("outgoingMediaTypes","Outbound Interactions",[{key:"Voice",count:t.voice?.length||0},{key:"Message",count:t.message?.length||0},{key:"Email",count:t.email?.length||0},{key:"Callback",count:t.callback?.length||0}]),buildTableRows("outboundTable","outboundTableName",[["Media","Interactions"],["Voice",t.voice?.length||0],["Message",t.message?.length||0],["Email",t.email?.length||0],["Callback",t.callback?.length||0]]);let n=await mediaRecordingTotals();console.log("%cRecordings: ","color: green",n),buildColumnChart("recordings","Recordings",[{key:"Voice",count:n.voice?.length||0},{key:"Message",count:n.message?.length||0},{key:"Email",count:n.email?.length||0},{key:"Callback",count:n.callback?.length||0}]),buildTableRows("recordingsTable","recordingsTableName",[["Media","Interactions"],["Voice",n.voice?.length||0],["Message",n.message?.length||0],["Email",n.email?.length||0],["Callback",n.callback?.length||0]]);let a=[],o=await interactionsPerDay(e.voice,"inboundVoice"),i=await interactionsPerDay(t.voice,"outboundVoice"),l=0;for(const e of o)a.push([e[0],e[1]+i[l][1]]),l++;console.log("%cCalls Per Day: ","color: green",a),buildColumnChart("callsPerDay","Calls Per Day",a.map((e=>({key:e[0],count:e[1]}))));let s=[],r=await interactionsPerDay(e.email,"inboundEmail"),c=await interactionsPerDay(t.email,"outboundEmail"),u=0;for(const e of r)s.push([e[0],e[1]+c[u][1]]),u++;console.log("%cEmails Per Day: ","color: green",s),buildColumnChart("emailsPerDay","Emails Per Day",s.map((e=>({key:e[0],count:e[1]}))));let d=[],g=await interactionsPerDay(e.message,"inboundMessaging"),m=await interactionsPerDay(t.message,"outboundMessaging"),p=0;for(const e of g)d.push([e[0],e[1]+m[p][1]]),p++;console.log("%cMessages Per Day: ","color: green",d),buildColumnChart("messagesPerDay","Messages Per Day",d.map((e=>({key:e[0],count:e[1]}))));let y=[],C=await interactionsPerDay(e.callback,"inboundCallback"),I=await interactionsPerDay(t.callback,"outboundCallback"),b=0;for(const e of C)y.push([e[0],e[1]+I[b][1]]),b++;console.log("%cCallbacks Per Day: ","color: green",y),buildColumnChart("callbacksPerDay","Callbacks Per Day",y.map((e=>({key:e[0],count:e[1]})))),buildStackedColumnChart(a.map((e=>({key:e[0],count:e[1]}))),s.map((e=>({key:e[0],count:e[1]}))),d.map((e=>({key:e[0],count:e[1]}))),y.map((e=>({key:e[0],count:e[1]}))));let v=await getUsersPerDay();console.log("%cUsers Per Day: ","color: green",v),buildColumnChart("usersPerDay","Users Per Day",v.map((e=>({key:e[0],count:e[1]}))));buildTableRows("flowUsage","flowUsageName",await architectFlows());const f=await getQueues(1);buildTableRows("routingUsage","routingUsageName",await getRoutingTypes(f)),await getQueuesUsage(f);let E=await getSkills(1),h=getSkillsBuilt(e),w=getSkillsBuilt(t),B=new Set(h,w);console.log(B);let T="⛔";B.size>0&&(T="✅"),buildTableRows("objectUsage","objectUsageName",[["Skills",E.length,B.size,T]]),console.log(`Total API Requests: ${globalApiRequests}`),document.getElementById("totalAPIs").innerHTML=`<strong>${globalApiRequests}</strong>`,document.getElementById("spinner").style.display="none",document.getElementById("download").style.display="block"}catch(e){console.log("Error: ",e),notification("Error",`Error: ${e}`)}}async function getConversations(e,t){t.paging.pageNumber=e;let n=await capi.postAnalyticsConversationsDetailsQuery(t);if(globalApiRequests++,e<Math.ceil(n.totalHits/100)){const a=await getConversations(e+1,t);return n.conversations.concat(a)}return n.conversations}async function mosAndRFactor(){let e=await getConversations(1,{interval:`${document.getElementById("datepicker").value.split("/")[0]}T00:00:00${document.getElementById("timeZone").value}/${document.getElementById("datepicker").value.split("/")[1]}T23:59:59${document.getElementById("timeZone").value}`,order:"desc",orderBy:"conversationStart",paging:{pageSize:100,pageNumber:1},conversationFilters:[{predicates:[{type:"dimension",operator:"exists",dimension:"mediaStatsMinConversationMos"}],type:"and"}]});console.log("%cTotal MOS & RFactor Conversations: ","color: green",e);let t=0,n=0,a=0,o=0,i=0,l=0,s=4.99,r=99.99,c="green",u="green";for(const c of e){if(c?.mediaStatsMinConversationMos){++t;let e=Math.round(100*c.mediaStatsMinConversationMos)/100;e<s&&(s=e),e>a&&(a=e),o+=e}if(c?.mediaStatsMinConversationRFactor){++n;let e=Math.round(100*c.mediaStatsMinConversationRFactor)/100;e<r&&(r=e),e>i&&(i=e),l+=e}}let d=Math.round(o/e.length*100)/100,g=Math.round(l/e.length*100)/100;s<3.5&&(c="red"),r<50&&(u="red"),document.getElementById("mosLabel").innerHTML=`<div style="display: inline-flex; width: 100%; justify-content: space-evenly;"><h5>MOS Total Interactions: ${t}</h5><h5>Min: <strong style="color: ${c}"> ▼ ${s}</strong></h5><h5>Max: <strong  style="color: green"> ▲ ${a}</strong></h5><h5>Average: 📈 ${d}</h5></div>`,document.getElementById("rFactorLabel").innerHTML=`<div style="display: inline-flex; width: 100%; justify-content: space-evenly;"><h5>MOS Total Interactions: ${n}</h5><h5>Min: <strong style="color: ${u}"> ▼ ${r}</strong></h5><h5>Max: <strong  style="color: green"> ▲ ${i}</strong></h5><h5>Average: 📈 ${g}</h5></div>`}async function buildColumnChart(e,t,n){new Chart(document.getElementById(e),{type:"bar",data:{labels:n.map((e=>e.key)),datasets:[{label:t||"Unknown",data:n.map((e=>e.count))}]}})}async function buildStackedColumnChart(e,t,n,a){let o={labels:e.map((e=>e.key)),datasets:[{label:"Call",data:e.map((e=>e.count)),backgroundColor:"rgba(255, 99, 132, 0.6)",borderColor:"rgba(255, 99, 132, 1)"},{label:"Email",data:t.map((e=>e.count)),backgroundColor:"rgba(54, 162, 235, 0.6)",borderColor:"rgba(54, 162, 235, 1)"},{label:"Message",data:n.map((e=>e.count)),backgroundColor:"rgba(255, 206, 86, 0.6)",borderColor:"rgba(255, 206, 86, 1)"},{label:"Callback",data:a.map((e=>e.count)),backgroundColor:"rgba(75, 192, 192, 0.6)",borderColor:"rgb(75, 192, 1)"}]};new Chart(document.getElementById("interactionsPerDay"),{type:"bar",data:o,options:{responsive:!0,maintainAspectRatio:!0,scales:{x:{stacked:!0},y:{stacked:!0,beginAtZero:!0}},plugins:{title:{display:!0,text:"Interactions",font:{size:18}},tooltip:{mode:"index",intersect:!1}}}})}async function mediaTypeTotals(e){return{voice:await getConversations(1,{interval:`${document.getElementById("datepicker").value.split("/")[0]}T00:00:00${document.getElementById("timeZone").value}/${document.getElementById("datepicker").value.split("/")[1]}T23:59:59${document.getElementById("timeZone").value}`,order:"desc",orderBy:"conversationStart",paging:{pageSize:100,pageNumber:1},conversationFilters:[{type:"and",predicates:[{metric:"nConnected",operator:"exists"}]}],segmentFilters:[{predicates:[{dimension:"mediaType",value:"voice",operator:"matches"},{dimension:"direction",operator:"matches",value:e}],type:"and"}]}),message:await getConversations(1,{interval:`${document.getElementById("datepicker").value.split("/")[0]}T00:00:00${document.getElementById("timeZone").value}/${document.getElementById("datepicker").value.split("/")[1]}T23:59:59${document.getElementById("timeZone").value}`,order:"desc",orderBy:"conversationStart",paging:{pageSize:100,pageNumber:1},conversationFilters:[{type:"and",predicates:[{metric:"nConnected",operator:"exists"}]}],segmentFilters:[{predicates:[{dimension:"mediaType",value:"message",operator:"matches"},{dimension:"direction",operator:"matches",value:e}],type:"and"}]}),email:await getConversations(1,{interval:`${document.getElementById("datepicker").value.split("/")[0]}T00:00:00${document.getElementById("timeZone").value}/${document.getElementById("datepicker").value.split("/")[1]}T23:59:59${document.getElementById("timeZone").value}`,order:"desc",orderBy:"conversationStart",paging:{pageSize:100,pageNumber:1},conversationFilters:[{type:"and",predicates:[{metric:"nConnected",operator:"exists"}]}],segmentFilters:[{predicates:[{dimension:"mediaType",value:"email",operator:"matches"},{dimension:"direction",operator:"matches",value:e}],type:"and"}]}),callback:await getConversations(1,{interval:`${document.getElementById("datepicker").value.split("/")[0]}T00:00:00${document.getElementById("timeZone").value}/${document.getElementById("datepicker").value.split("/")[1]}T23:59:59${document.getElementById("timeZone").value}`,order:"asc",orderBy:"conversationStart",paging:{pageSize:100,pageNumber:1},conversationFilters:[{type:"and",predicates:[{metric:"nConnected",operator:"exists"}]}],segmentFilters:[{predicates:[{dimension:"mediaType",value:"callback",operator:"matches"},{dimension:"direction",operator:"matches",value:e}],type:"and"}]})}}async function mediaRecordingTotals(){return{voice:await getConversations(1,{interval:`${document.getElementById("datepicker").value.split("/")[0]}T00:00:00${document.getElementById("timeZone").value}/${document.getElementById("datepicker").value.split("/")[1]}T23:59:59${document.getElementById("timeZone").value}`,order:"desc",orderBy:"conversationStart",paging:{pageSize:100,pageNumber:1},segmentFilters:[{predicates:[{dimension:"mediaType",value:"voice",operator:"matches"},{dimension:"recording",operator:"exists"}],type:"and"}]}),message:await getConversations(1,{interval:`${document.getElementById("datepicker").value.split("/")[0]}T00:00:00${document.getElementById("timeZone").value}/${document.getElementById("datepicker").value.split("/")[1]}T23:59:59${document.getElementById("timeZone").value}`,order:"desc",orderBy:"conversationStart",paging:{pageSize:100,pageNumber:1},segmentFilters:[{predicates:[{dimension:"mediaType",value:"message",operator:"matches"},{dimension:"recording",operator:"exists"}],type:"and"}]}),email:await getConversations(1,{interval:`${document.getElementById("datepicker").value.split("/")[0]}T00:00:00${document.getElementById("timeZone").value}/${document.getElementById("datepicker").value.split("/")[1]}T23:59:59${document.getElementById("timeZone").value}`,order:"desc",orderBy:"conversationStart",paging:{pageSize:100,pageNumber:1},segmentFilters:[{predicates:[{dimension:"mediaType",value:"email",operator:"matches"},{dimension:"recording",operator:"exists"}],type:"and"}]}),callback:await getConversations(1,{interval:`${document.getElementById("datepicker").value.split("/")[0]}T00:00:00${document.getElementById("timeZone").value}/${document.getElementById("datepicker").value.split("/")[1]}T23:59:59${document.getElementById("timeZone").value}`,order:"desc",orderBy:"conversationStart",paging:{pageSize:100,pageNumber:1},segmentFilters:[{predicates:[{dimension:"mediaType",value:"callback",operator:"matches"},{dimension:"recording",operator:"exists"}],type:"and"}]})}}async function interactionsPerDay(e,t){let n=[],a=document.getElementById("datepicker").value.split("/")[0],o=document.getElementById("datepicker").value.split("/")[1],i=new Date(a),l=new Date(o);for(;i<=l;){let e=i.toISOString().split("T")[0];n.push([e,0]),i.setDate(i.getDate()+1)}if(!e)return console.warn("No conversations supplied for: ",t),n;for(const t of e){let e=new Date(t.conversationStart),a=new Date(e.getTime()-6e4*e.getTimezoneOffset()).toISOString().split("T")[0];if(n.some((e=>e[0]===a))){let e=n.findIndex((e=>e[0]===a));n[e][1]+=1}else console.warn("different start date interaction: ",t.id)}return n.sort(((e,t)=>new Date(e[0])-new Date(t[0])))}async function getUsers(e){let t=await uapi.getUsers({pageNumber:e,pageSize:200,state:"active"});if(globalApiRequests++,e<Math.ceil(t.total/200)){const n=await getUsers(e+1);return t.entities.concat(n)}return t.entities}async function getUsersPerDay(){let e=[],t=await getUsers(1);for(const n of t)e.push({dimension:"userId",value:n.id});if(e.length>100){let t=[];for(let n=0;n<e.length;n+=100)t.push(e.slice(n,n+100));let n=[];for(const e of t){let t=await uapi.postAnalyticsUsersAggregatesQuery({interval:`${document.getElementById("datepicker").value.split("/")[0]}T00:00:00${document.getElementById("timeZone").value}/${document.getElementById("datepicker").value.split("/")[1]}T23:59:59${document.getElementById("timeZone").value}`,granularity:"P1D",groupBy:["userId"],metrics:["tSystemPresence"],filter:{type:"and",predicates:e}});globalApiRequests++,n=n.concat(t.results)}return await formatUsers(n)}{let t=await uapi.postAnalyticsUsersAggregatesQuery({interval:`${document.getElementById("datepicker").value.split("/")[0]}T00:00:00${document.getElementById("timeZone").value}/${document.getElementById("datepicker").value.split("/")[1]}T23:59:59${document.getElementById("timeZone").value}`,granularity:"P1D",groupBy:["userId"],metrics:["tSystemPresence"],filter:{type:"and",predicates:e}});return globalApiRequests++,await formatUsers(t.results)}}async function formatUsers(e){let t=[],n=document.getElementById("datepicker").value.split("/")[0],a=document.getElementById("datepicker").value.split("/")[1],o=new Date(n),i=new Date(a);for(;o<=i;){let e=o.toISOString().split("T")[0];t.push([e,0]),o.setDate(o.getDate()+1)}for(const n of e)for(const e of n.data){let n=new Date(e.interval.split("/")[0]),a=new Date(n.getTime()-6e4*n.getTimezoneOffset()).toISOString().split("T")[0],o=t.find((e=>e[0]==a));for(const t of e.metrics)"OFFLINE"==t.qualifier||(o[1]=o[1]+1)}return t}async function getFlows(e){let t=await aapi.getFlows({pageSize:200,pageNumber:e});if(globalApiRequests++,e!=t.pageCount){const n=await getFlows(e+1);return t.entities.concat(n)}return t.entities}async function usedFlows(){let e=await fapi.postAnalyticsFlowsAggregatesQuery({interval:`${document.getElementById("datepicker").value.split("/")[0]}T00:00:00${document.getElementById("timeZone").value}/${document.getElementById("datepicker").value.split("/")[1]}T23:59:59${document.getElementById("timeZone").value}`,groupBy:["flowId"],metrics:["tFlow"]});return globalApiRequests++,e.results}async function architectFlows(){let e=[{type:"WORKFLOW",CX1:"🔴",CX2:"🔴",CX3:"🔴",builtCount:0,usedCount:0,InUse:"No"},{type:"DIGITALBOT",CX1:"",CX2:"🔴",CX3:"🔴",builtCount:0,usedCount:0,InUse:"No"},{type:"INBOUNDCALL",CX1:"🔴",CX2:"🔴",CX3:"🔴",builtCount:0,usedCount:0,InUse:"No"},{type:"INBOUNDCHAT (EOL)",CX1:"",CX2:"🔴",CX3:"🔴",builtCount:0,usedCount:0,InUse:"No"},{type:"INQUEUECALL",CX1:"🔴",CX2:"🔴",CX3:"🔴",builtCount:0,usedCount:0,InUse:"No"},{type:"SURVEYINVITE",CX1:"",CX2:"🔴",CX3:"🔴",builtCount:0,usedCount:0,InUse:"No"},{type:"VOICESURVEY",CX1:"🔴",CX2:"🔴",CX3:"🔴",builtCount:0,usedCount:0,InUse:"No"},{type:"INBOUNDEMAIL",CX1:"",CX2:"🔴",CX3:"🔴",builtCount:0,usedCount:0,InUse:"No"},{type:"BOT",CX1:"🔴",CX2:"🔴",CX3:"🔴",builtCount:0,usedCount:0,InUse:"No"},{type:"SECURECALL",CX1:"🔴",CX2:"🔴",CX3:"🔴",builtCount:0,usedCount:0,InUse:"No"},{type:"COMMONMODULE",CX1:"🔴",CX2:"🔴",CX3:"🔴",builtCount:0,usedCount:0,InUse:"No"},{type:"INBOUNDSHORTMESSAGE",CX1:"",CX2:"🔴",CX3:"🔴",builtCount:0,usedCount:0,InUse:"No"},{type:"OUTBOUNDCALL",CX1:"🔴",CX2:"🔴",CX3:"🔴",builtCount:0,usedCount:0,InUse:"No"},{type:"WORKITEM",CX1:"AddOn",CX2:"AddOn",CX3:"AddOn",builtCount:0,usedCount:0,InUse:"No"},{type:"INQUEUESHORTMESSAGE",CX1:"",CX2:"🔴",CX3:"🔴",builtCount:0,usedCount:0,InUse:"No"},{type:"INQUEUEEMAIL",CX1:"",CX2:"🔴",CX3:"🔴",builtCount:0,usedCount:0,InUse:"No"},{type:"VOICEMAIL",CX1:"🔴",CX2:"🔴",CX3:"🔴",builtCount:0,usedCount:0,InUse:"No"}],t=await getFlows(1);for(const n of t){let t=e.find((e=>e.type===n.type));t&&t.builtCount++}let n=await usedFlows();for(const a of n){let n=t.find((e=>e.id===a.group.flowId));if(n){let t=e.find((e=>e.type===n.type));t&&t.usedCount++}}let a=[["Type of flow","CX1","CX2","CX3","total built","total used","In use"]];for(const t of e){let e="⛔";t.usedCount>0&&(e="✅"),a.push([t.type,t.CX1,t.CX2,t.CX3,t.builtCount.toString(),t.usedCount.toString(),e])}return a}async function getQueues(e){let t=await rapi.getRoutingQueues({pageNumber:e,pageSize:200});if(globalApiRequests++,e!=t.pageCount){const n=await getQueues(e+1);return t.entities.concat(n)}return t.entities}async function getQueuesUsage(e){let t=await capi.postAnalyticsConversationsAggregatesQuery({interval:`${document.getElementById("datepicker").value.split("/")[0]}T00:00:00${document.getElementById("timeZone").value}/${document.getElementById("datepicker").value.split("/")[1]}T23:59:59${document.getElementById("timeZone").value}`,groupBy:["queueId"],metrics:["nConnected"]});globalApiRequests++;let n=t.results,a=[["Object","total built","total used","In use"]],o="No";n.length>0&&(o="✅"),a.push(["Queues",e.length,n.length,o]),buildTableRows("objectUsage","objectUsageName",a)}async function getRoutingTypes(e){console.log(e);let t=0,n=0,a=0,o=0,i=0;for(const l of e)if(l.bullseye)t++;else if(l.predictiveRouting)n++;else if(l.conditionalGroupRouting)a++;else if(l.routingRules){if(l.routingRules[0]){o++;continue}i++}else i++;const l=await getRoutingUsage("Bullseye"),s=await getRoutingUsage("Predictive"),r=await getRoutingUsage("Conditional"),c=await getRoutingUsage("Preferred"),u=await getRoutingUsage("Standard"),d=await getRoutingUsage("Direct"),g=await getRoutingUsage("Last"),m=await getRoutingUsage("Manual"),p=await getRoutingUsage("Vip");console.log(`Other methods: ${d+g+m+p}`);let y=[],C=[{type:"Bullseye",CX1:"🔴",CX2:"🔴",CX3:"🔴",builtCount:t,usedCount:l,InUse:"⛔"},{type:"Predective",CX1:"🔴",CX2:"🔴",CX3:"🔴",builtCount:n,usedCount:s,InUse:"⛔"},{type:"Conditional Group",CX1:"🔴",CX2:"🔴",CX3:"🔴",builtCount:a,usedCount:r,InUse:"⛔"},{type:"Preffered Agent",CX1:"🔴",CX2:"🔴",CX3:"🔴",builtCount:o,usedCount:c,InUse:"⛔"},{type:"Standard",CX1:"🔴",CX2:"🔴",CX3:"🔴",builtCount:i,usedCount:u,InUse:"⛔"}];y.push(["Routing Method","CX1","CX2","CX3","total built","total used","In use"]);for(const e of C){let t="⛔";e.usedCount>0&&(t="✅"),y.push([e.type,e.CX1,e.CX2,e.CX3,e.builtCount.toString(),e.usedCount.toString(),t])}return y}async function getSkills(e){let t=await rapi.getRoutingSkills({pageNumber:e,pageSize:200});if(globalApiRequests++,e!=t.pageCount){const n=await getSkills(e+1);return t.entities.concat(n)}return t.entities}function getSkillsBuilt(e){let t,n,a,o,i=[];return e.voice&&(t=findIfSkill(e.voice)),e.message&&(n=findIfSkill(e.message)),e.email&&(a=findIfSkill(e.email)),e.callback&&(o=findIfSkill(e.callback)),!t&&(t=[]),!n&&(n=[]),!a&&(a=[]),!o&&(o=[]),i.push(...t,...n,...a,...o),console.log(i),i}function findIfSkill(e){let t=[];for(const n of e)for(const e of n.participants)for(const n of e.sessions)n.activeSkillIds&&t.push(...n.activeSkillIds);return t}async function getRoutingUsageAgg(){return await capi.postAnalyticsConversationsAggregatesQuery({interval:`${document.getElementById("datepicker").value.split("/")[0]}T00:00:00${document.getElementById("timeZone").value}/${document.getElementById("datepicker").value.split("/")[1]}T23:59:59${document.getElementById("timeZone").value}`,metrics:["nConnected"],groupBy:["queueId","usedRouting"]})}async function getRoutingUsage(e){let t=await capi.postAnalyticsConversationsDetailsQuery({interval:`${document.getElementById("datepicker").value.split("/")[0]}T00:00:00${document.getElementById("timeZone").value}/${document.getElementById("datepicker").value.split("/")[1]}T23:59:59${document.getElementById("timeZone").value}`,order:"desc",orderBy:"conversationStart",paging:{pageSize:1,pageNumber:1},segmentFilters:[{type:"and",predicates:[{dimension:"requestedRouting",value:e}]}],conversationFilters:[{type:"and",predicates:[{metric:"nConnected",operator:"exists"}]}]});return console.log(t.totalHits),t.totalHits}start();  </script>
+</body>
+<style>
+  body {
+    max-width: 900px;
+    justify-self: center;
+  }
+
+  .mm-center {
+    text-align: center;
+    padding: 8px;
+    width: auto;
+  }
+
+  .mm-card {
+    margin: 8px;
+    width: auto;
+  }
+
+  .mm-chart {
+    max-width: 100%;
+    max-height: 100%;
+  }
+
+  .mm-table {
+    margin-left: 18px
+  }
+
+  /* Styles specifically for printing */
+  @media print {
+    .content {
+      width: auto;
+      float: none;
+    }
+
+    a::after {
+      content: ' (' attr(href) ')';
+      font-size: 80%;
+    }
+
+    .header {
+      display: none !important;
+    }
+
+    gux-card {
+      page-break-inside: avoid;
+      /* Prevent card from breaking across pages */
+    }
+
+    img {
+      max-width: 100%;
+    }
+  }
+</style>
+
+</html>
