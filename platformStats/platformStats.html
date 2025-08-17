@@ -154,16 +154,16 @@
 
       async function getConversations(pageNumber) {
         let conversations = await capi.postAnalyticsConversationsDetailsQuery({
-          interval: `${document.getElementById('datepicker').value.split('/')[0]}T00:00:00${document.getElementById('timeZone').value}/${
-            document.getElementById('datepicker').value.split('/')[1]
-          }T23:59:59${document.getElementById('timeZone').value}`,
+          // prettier-ignore
+          interval: `${document.getElementById('datepicker').value.split('/')[0]}T00:00:00${document.getElementById('timeZone').value}/${document.getElementById('datepicker').value.split('/')[1]}T23:59:59${document.getElementById('timeZone').value}`,
+          order: 'desc',
+          orderBy: 'conversationStart',
           paging: {
             pageSize: 100,
             pageNumber: pageNumber,
           },
           conversationFilters: [
             {
-              type: 'and',
               predicates: [
                 {
                   type: 'dimension',
@@ -171,9 +171,9 @@
                   dimension: 'mediaStatsMinConversationMos',
                 },
               ],
+              type: 'and',
             },
           ],
-          orderBy: 'conversationStart',
         })
         return conversations
       }
