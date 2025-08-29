@@ -18,7 +18,7 @@ In a PROD environment that would be your hosting location eg google bucket or am
 
 ![](/docs/images/oauth.png?raw=true)
 
-You will no need to set the required `scopes` based on the example you are using. Once created you will need to copy the `ClientID`
+You will now need to set the required `scopes` based on the example you are using. Once created you will need to copy the `ClientID`
 
 ```
 clientId
