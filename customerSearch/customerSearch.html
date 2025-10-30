@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<!-- Created as an example by https://github.com/mcphee11 Version 4.1 -->
+<html>
+
+<head>
+  <meta name="robots" content="noindex" />
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title></title>
+  <meta name="Template" content="" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Genesys CSS https://spark.genesys.com/ In PROD set a version https://www.jsdelivr.com/package/npm/genesys-spark-components -->
+  <link no-cors
+    href="https://cdn.jsdelivr.net/npm/genesys-spark-components@latest/dist/genesys-webcomponents/genesys-webcomponents.min.css"
+    rel="stylesheet" />
+  <script no-cors type="module"
+    src="https://cdn.jsdelivr.net/npm/genesys-spark-components@latest/dist/genesys-webcomponents/genesys-webcomponents.esm.min.js"></script>
+  <!-- Genesys SDK info https://developer.genesys.cloud/  In PROD set a version -->
+  <script src="https://sdk-cdn.mypurecloud.com/javascript/latest/purecloud-platform-client-v2.min.js"></script>
+  <script src="https://sdk-cdn.mypurecloud.com/client-apps/2.6.7/purecloud-client-app-sdk.js"></script>
+</head>
+
+<body onload="start()">
+  <div style="display: inline-flex">
+    <gux-dropdown filter-type="starts-with" placeholder="UTC-00:00" id="timeZone" style="width: 150px; padding: 8px">
+      <gux-listbox aria-label="Time Zone">
+        <gux-option value="-12:00">UTC-12:00</gux-option><gux-option value="-11:00">UTC-11:00</gux-option><gux-option
+          value="-10:00">UTC-10:00</gux-option><gux-option value="-09:30">UTC-09:30</gux-option><gux-option
+          value="-09:00">UTC-09:00</gux-option><gux-option value="-08:00">UTC-08:00</gux-option><gux-option
+          value="-07:00">UTC-07:00</gux-option><gux-option value="-06:00">UTC-06:00</gux-option><gux-option
+          value="-05:00">UTC-05:00</gux-option><gux-option value="-04:00">UTC-04:00</gux-option><gux-option
+          value="-03:30">UTC-03:30</gux-option><gux-option value="-03:00">UTC-03:00</gux-option><gux-option
+          value="-02:00">UTC-02:00</gux-option><gux-option value="-01:00">UTC-01:00</gux-option><gux-option
+          value="-00:00">UTC+00:00</gux-option><gux-option value="+00:00">UTC+00:00</gux-option><gux-option
+          value="+01:00">UTC+01:00</gux-option><gux-option value="+02:00">UTC+02:00</gux-option><gux-option
+          value="+03:00">UTC+03:00</gux-option><gux-option value="+03:30">UTC+03:30</gux-option><gux-option
+          value="+04:00">UTC+04:00</gux-option><gux-option value="+04:30">UTC+04:30</gux-option><gux-option
+          value="+05:00">UTC+05:00</gux-option><gux-option value="+05:30">UTC+05:30</gux-option><gux-option
+          value="+05:45">UTC+05:45</gux-option><gux-option value="+06:00">UTC+06:00</gux-option><gux-option
+          value="+06:30">UTC+06:30</gux-option><gux-option value="+07:00">UTC+07:00</gux-option><gux-option
+          value="+08:00">UTC+08:00</gux-option><gux-option value="+08:45">UTC+08:45</gux-option><gux-option
+          value="+09:00">UTC+09:00</gux-option><gux-option value="+09:30">UTC+09:30</gux-option><gux-option
+          value="+10:00">UTC+10:00</gux-option><gux-option value="+10:30">UTC+10:30</gux-option><gux-option
+          value="+11:00">UTC+11:00</gux-option><gux-option value="+12:00">UTC+12:00</gux-option><gux-option
+          value="+12:45">UTC+12:45</gux-option><gux-option value="+13:00">UTC+13:00</gux-option><gux-option
+          value="+14:00">UTC+14:00</gux-option>
+      </gux-listbox>
+    </gux-dropdown>
+    <gux-datepicker id="datepicker" style="padding: 8px" mode="range" value="" number-of-months="2"></gux-datepicker>
+    <gux-button style="padding: 8px" accent="secondary" onclick="months12()">12 Months</gux-button>
+    <gux-button style="padding: 8px" accent="secondary" onclick="months24()">24 Months</gux-button>
+    <gux-button style="padding: 8px" accent="primary" onclick="getData()">Search</gux-button>
+    <gux-button style="padding: 8px" accent="secondary" onclick="clearData()">Clear</gux-button>
+    <gux-button id="download" style="padding: 8px; display: none" accent="ghost"
+      onclick="buildCsv()">Download</gux-button>
+  </div>
+  <div style="display: flex">
+    <gux-dropdown id="type" placeholder="Select Type..." style="width: 150px; padding: 8px;">
+      <gux-listbox aria-label="type">
+        <gux-option value="ani" selected>ANI</gux-option>
+        <gux-option value="externalTag">External Tag</gux-option>
+        <gux-option value="email">Email</gux-option>
+    </gux-dropdown>
+    <gux-form-field-search id="value" placeholder="Enter Value..." style="width: 250px; padding: 8px;">
+      <input id="input" type="search" slot="input" />
+      <label slot="label">Value</label>
+    </gux-form-field-search>
+    <h3 id="tCount" style="margin: auto">Total Count: 0</h3>
+    <h3 id="lakeTime" style="margin: auto"></h3>
+  </div>
+  <div id="spinner" style="justify-self: center; padding: 8px; display: none">
+    <gux-radial-loading id="loading" class="loading" screenreader-text="Loading..."></gux-radial-loading>
+  </div>
+  <div id="tableLocation" style="padding: 8px"></div>
+  <script>
+    'use strict' //Enables strict mode is JavaScript
+    let url = new URL(document.location.href)
+    let gc_region = url.searchParams.get('gc_region')
+    let gc_clientId = url.searchParams.get('gc_clientId')
+    let gc_redirectUrl = url.searchParams.get('gc_redirectUrl')
+    let csvRows = []
+
+    //Getting and setting the GC details from dynamic URL and session storage
+    gc_region ? sessionStorage.setItem('gc_region', gc_region) : gc_region = sessionStorage.getItem('gc_region')
+    gc_clientId ? sessionStorage.setItem('gc_clientId', gc_clientId) : gc_clientId = sessionStorage.getItem('gc_clientId')
+    gc_redirectUrl ? sessionStorage.setItem('gc_redirectUrl', gc_redirectUrl) : gc_redirectUrl = sessionStorage.getItem('gc_redirectUrl')
+
+    let platformClient = require('platformClient')
+    const client = platformClient.ApiClient.instance
+    const capi = new platformClient.ConversationsApi()
+
+    // Configure Client App
+    const ClientApp = window.purecloud.apps.ClientApp
+    const myClientApp = new ClientApp({
+      pcEnvironment: gc_region,
+    })
+
+    async function start() {
+      try {
+        client.setEnvironment(gc_region)
+        client.setPersistSettings(true, '_mm_')
+
+        console.log('%cLogging in to Genesys Cloud', 'color: green')
+        await client.loginPKCEGrant(gc_clientId, gc_redirectUrl, {})
+        getUTCOffset()
+        getLakeTime()
+      } catch (err) {
+        console.log('Error: ', err)
+      }
+    }
+
+    async function getLakeTime() {
+      const lake = await capi.getAnalyticsConversationsDetailsJobsAvailability()
+      document.getElementById('lakeTime').innerText = `Data available from: ${new Date(lake.dataAvailabilityDate).toLocaleString()}`
+    }
+    function months12() {
+      let today = new Date()
+      let aMonthAgo = new Date()
+      aMonthAgo.setMonth(aMonthAgo.getMonth() - 12)
+      // prettier-ignore
+      document.getElementById('datepicker').value = `${aMonthAgo.getFullYear()}-${String(aMonthAgo.getMonth() + 1).padStart(2, '0')}-${String(aMonthAgo.getDate()).padStart(2, '0')}/${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+    }
+
+    function months24() {
+      let today = new Date()
+      let aMonthAgo = new Date()
+      aMonthAgo.setMonth(aMonthAgo.getMonth() - 24)
+      // prettier-ignore
+      document.getElementById('datepicker').value = `${aMonthAgo.getFullYear()}-${String(aMonthAgo.getMonth() + 1).padStart(2, '0')}-${String(aMonthAgo.getDate()).padStart(2, '0')}/${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+    }
+
+    function getUTCOffset() {
+      const now = new Date()
+      const offsetMinutes = now.getTimezoneOffset()
+      const offsetHours = -offsetMinutes / 60 // Invert for standard UTC offset representation
+
+      let offsetString = ''
+      if (offsetHours === 0) {
+        offsetString = '+00:00'
+      } else {
+        const sign = offsetHours > 0 ? '+' : '-'
+        const absHours = Math.abs(Math.floor(offsetHours))
+        const minutes = Math.abs(Math.floor((offsetHours - absHours) * 60))
+        const hoursString = absHours.toString().padStart(2, '0')
+        const minutesString = minutes.toString().padStart(2, '0')
+        offsetString = `${sign}${hoursString}:${minutesString}`
+      }
+      document.getElementById('timeZone').value = offsetString
+    }
+
+    // download csv
+    function buildCsv() {
+      let csvContent = 'data:text/csv;charset=utf-8,' + csvRows.map((e) => e.join(',')).join('\r\n')
+      const encodedUri = encodeURI(csvContent)
+      const link = document.createElement('a')
+      link.setAttribute('href', encodedUri)
+      link.setAttribute('download', 'report.csv')
+      document.body.appendChild(link)
+      link.click()
+    }
+
+    async function clearData() {
+      console.log('%cClearing data', 'color: green')
+      document.getElementById('tableLocation').innerHTML = ''
+      document.getElementById('spinner').style.display = 'none'
+      document.getElementById('download').style.display = 'none'
+      csvRows = []
+    }
+
+    function notification(type, message) {
+      if (window.location !== window.parent.location) {
+        // if in an iframe
+        myClientApp.alerting.showToastPopup(type, message)
+        return
+      }
+      window.alert(message)
+      return
+    }
+
+    // dynamic table creation
+    async function buildTableRows(rows) {
+      for (const row of rows) {
+        let tableBody = document.getElementById('tableBody')
+        if (!tableBody) {
+          // create the top table row if its not already there
+          console.log('Creating table')
+          let top = document.getElementById('tableLocation')
+          let guxTable = document.createElement('gux-table')
+          let table = document.createElement('table')
+          let header = document.createElement('thead')
+          let headerRow = document.createElement('tr')
+          let tbody = document.createElement('tbody')
+
+          headerRow.setAttribute('data-row-id', 'head')
+          tbody.setAttribute('id', 'tableBody')
+          table.setAttribute('slot', 'data')
+          guxTable.setAttribute('resizable-columns', '')
+
+          header.appendChild(headerRow)
+          guxTable.appendChild(table)
+          table.appendChild(header)
+          table.appendChild(tbody)
+
+          // create column names on first row
+          for (const item of row) {
+            let th = document.createElement('th')
+            th.setAttribute('data-column-name', item)
+            th.style.textWrap = 'auto'
+            th.innerHTML = item
+            th.title = item
+            headerRow.appendChild(th)
+          }
+          top.appendChild(guxTable)
+          continue
+        }
+        if (tableBody) {
+          // add data to the row
+          let tr = document.createElement('tr')
+          for (const item of row) {
+            let column = document.createElement('td')
+            if (item === 'OpenBtn') {
+              let btn = document.createElement('gux-button')
+              btn.setAttribute('accent', 'secondary')
+              btn.setAttribute('size', 'small')
+              btn.innerText = 'Open Conversation'
+              btn.onclick = function () {
+                myClientApp.conversations.showInteractionDetails(this.parentNode.parentNode.firstChild.innerText)
+              }
+              column.appendChild(btn)
+            } else {
+              column.innerHTML = item
+            }
+            tr.appendChild(column)
+          }
+          tableBody.appendChild(tr)
+        }
+      }
+    }
+
+    async function getData() {
+      console.log('%cGetting data', 'color: green')
+      csvRows = []
+      document.getElementById('tableLocation').innerHTML = ''
+      document.getElementById('spinner').style.display = 'block'
+      let conversations = {}
+      try {
+        let conversations = await more31Days()
+        document.getElementById('tCount').innerText = `Total Count: ${conversations.conversations.length}`
+
+        if (conversations.totalHits === 0) {
+          notification('Info', 'No conversations found for the given criteria.')
+          document.getElementById('spinner').style.display = 'none'
+          return
+        }
+
+        for (const conv of conversations.conversations) {
+          // add the column names to the first row
+          if (csvRows.length === 0) {
+            csvRows.push(['ConversationId'])
+            csvRows[0].push('Media Type')
+            csvRows[0].push('Start Date')
+            csvRows[0].push('Open')
+          }
+          // add the data to the row
+          csvRows.push([conv.conversationId])
+          csvRows[csvRows.length - 1].push(conv.participants[0].sessions[0].mediaType)
+          csvRows[csvRows.length - 1].push(new Date(conv.conversationStart).toLocaleString().replace(',', ' '))
+          csvRows[csvRows.length - 1].push('OpenBtn')
+        }
+        console.log(csvRows)
+        await buildTableRows(csvRows)
+        document.getElementById('spinner').style.display = 'none'
+        document.getElementById('download').style.display = 'block'
+      } catch (err) {
+        console.log('Error: ', err)
+        notification('Error', `Error: ${err}`)
+      }
+    }
+
+    async function more31Days() {
+      let job = {}
+      if (document.getElementById('type').value === 'ani') {
+        job = await createJobAni()
+        console.log('Job created: ', job)
+      }
+      if (document.getElementById('type').value === 'email') {
+        job = await createJobRemote()
+        console.log('Job created: ', job)
+      }
+      if (document.getElementById('type').value === 'externalTag') {
+        job = await createJobRemote()
+        console.log('Job created: ', job)
+      }
+      let jobStatus = await getJobStatus(job.jobId)
+      console.log('Job status: ', jobStatus)
+      while (jobStatus.state !== 'FULFILLED') {
+        console.log('Waiting for job to complete...')
+        await new Promise((resolve) => setTimeout(resolve, 3000))
+        jobStatus = await getJobStatus(job.jobId)
+        console.log('Job status: ', jobStatus)
+      }
+      if (jobStatus.state === 'FAILED') {
+        throw new Error('Job failed to complete.')
+      }
+      const results = await getJobResults(job.jobId)
+      console.log('Job Results: ', results)
+      return results
+    }
+
+    async function createJobAni() {
+      const job = await capi.postAnalyticsConversationsDetailsJobs({
+        // prettier-ignore
+        interval: `${document.getElementById('datepicker').value.split('/')[0]}T00:00:00${document.getElementById('timeZone').value}/${document.getElementById('datepicker').value.split('/')[1]}T23:59:59${document.getElementById('timeZone').value}`,
+        segmentFilters: [
+          {
+            type: 'and',
+            predicates: [
+              {
+                dimension: 'ani',
+                value: document.getElementById('input').value,
+              },
+            ],
+          },
+        ],
+        orderBy: 'conversationStart',
+      })
+      return job
+    }
+
+    async function createJobRemote() {
+      const job = await capi.postAnalyticsConversationsDetailsJobs({
+        // prettier-ignore
+        interval: `${document.getElementById('datepicker').value.split('/')[0]}T00:00:00${document.getElementById('timeZone').value}/${document.getElementById('datepicker').value.split('/')[1]}T23:59:59${document.getElementById('timeZone').value}`,
+        segmentFilters: [
+          {
+            type: 'and',
+            predicates: [
+              {
+                dimension: 'remote',
+                value: document.getElementById('input').value,
+              },
+            ],
+          },
+        ],
+        orderBy: 'conversationStart',
+      })
+      return job
+    }
+
+    async function createJobExternalTag() {
+      const job = await capi.postAnalyticsConversationsDetailsJobs({
+        // prettier-ignore
+        interval: `${document.getElementById('datepicker').value.split('/')[0]}T00:00:00${document.getElementById('timeZone').value}/${document.getElementById('datepicker').value.split('/')[1]}T23:59:59${document.getElementById('timeZone').value}`,
+        conversationFilters: [
+          {
+            type: 'and',
+            predicates: [
+              {
+                dimension: 'externalTag',
+                value: document.getElementById('input').value,
+              },
+            ],
+          },
+        ],
+        orderBy: 'conversationStart',
+      })
+      return job
+    }
+
+
+    async function createJobRemote() {
+      const job = await capi.postAnalyticsConversationsDetailsJobs({
+        // prettier-ignore
+        interval: `${document.getElementById('datepicker').value.split('/')[0]}T00:00:00${document.getElementById('timeZone').value}/${document.getElementById('datepicker').value.split('/')[1]}T23:59:59${document.getElementById('timeZone').value}`,
+        segmentFilters: [
+          {
+            type: 'and',
+            predicates: [
+              {
+                dimension: 'remote',
+                value: document.getElementById('input').value,
+              },
+            ],
+          },
+        ],
+        orderBy: 'conversationStart',
+      })
+      return job
+    }
+
+    async function getJobStatus(jobId) {
+      let jobStatus = await capi.getAnalyticsConversationsDetailsJob(jobId)
+      return jobStatus
+    }
+
+    async function getJobResults(jobId, cursor) {
+      let result = await capi.getAnalyticsConversationsDetailsJobResults(jobId)
+
+      if (!result.cursor) {
+        console.log('Single page of results')
+        return result
+      } else {
+        console.log('Multiple pages of results')
+        let pages = true
+        let allResults = result
+        while (pages) {
+          const nextResult = await capi.getAnalyticsConversationsDetailsJobResults(jobId, {cursor: result.cursor})
+          allResults.conversations = allResults.conversations.concat(nextResult.conversations)
+          result.cursor = nextResult.cursor
+          if (!nextResult.cursor) {
+            pages = false
+          }
+        }
+        return allResults
+      }
+    }
+  </script>
+</body>
+
+</html>
