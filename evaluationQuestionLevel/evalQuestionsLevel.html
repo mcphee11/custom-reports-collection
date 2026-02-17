@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <!-- Created as an example by https://github.com/mcphee11 Version 4.1 -->
 <html>
   <head>
@@ -317,7 +317,11 @@
             }
             // add the data to the row
             csvRows.push([evaluation.agent.name])
-            csvRows[csvRows.length - 1].push(evaluation.evaluator.name)
+            let evaluatorName = 'System'
+            if (evaluation.evaluator) {
+              evaluatorName = evaluation.evaluator.name
+            }
+            csvRows[csvRows.length - 1].push(evaluatorName)
             csvRows[csvRows.length - 1].push(new Date(evaluation.conversationDate).toLocaleString().replace(',', ' '))
             csvRows[csvRows.length - 1].push(`<gux-button onclick="openConversationId('${conv.group.conversationId}')">Open</gux-button>`)
             csvRows[csvRows.length - 1].push(conv.group.conversationId)
