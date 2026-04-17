@@ -862,6 +862,10 @@ async function formatUsers(users) {
       let date = returnUsers.find((x) => x[0] == localDay)
       for (const metric of day.metrics) {
         if (metric.qualifier != 'OFFLINE') {
+          // ignore when date undefined for daylight savings change...
+          if (!date) {
+            continue
+          }
           date[1] = date[1] + 1
           continue
         }
