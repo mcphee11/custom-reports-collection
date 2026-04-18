@@ -86,7 +86,15 @@ async function clearData() {
     center.innerHTML = ''
   }
   for (const chart of mm_chart) {
-    chart.innerHTML = ''
+    let element = document.getElementById(chart.id)
+    if (chart.tagName == 'CANVAS') {
+      let existingChart = Chart.getChart(element)
+      if (existingChart) {
+        existingChart.destroy()
+      }
+    } else {
+      element.innerHTML = ''
+    }
   }
   for (const table of mm_table) {
     table.innerHTML = ''
@@ -318,7 +326,7 @@ async function mosAndRFactor() {
   let conversations = await getConversations(1, {
     // prettier-ignore
     interval: `${document.getElementById('datepicker').value.split('/')[0]}T00:00:00${document.getElementById('timeZone').value}/${document.getElementById('datepicker').value.split('/')[1]}T23:59:59${document.getElementById('timeZone').value}`,
-    order: 'desc',
+    order: 'asc',
     orderBy: 'conversationStart',
     paging: {
       pageSize: 100,
@@ -473,7 +481,7 @@ async function mediaTypeTotals(direction) {
   let conversationsVoice = await getConversations(1, {
     // prettier-ignore
     interval: `${document.getElementById('datepicker').value.split('/')[0]}T00:00:00${document.getElementById('timeZone').value}/${document.getElementById('datepicker').value.split('/')[1]}T23:59:59${document.getElementById('timeZone').value}`,
-    order: 'desc',
+    order: 'asc',
     orderBy: 'conversationStart',
     paging: {
       pageSize: 100,
@@ -513,7 +521,7 @@ async function mediaTypeTotals(direction) {
   let conversationsMessaging = await getConversations(1, {
     // prettier-ignore
     interval: `${document.getElementById('datepicker').value.split('/')[0]}T00:00:00${document.getElementById('timeZone').value}/${document.getElementById('datepicker').value.split('/')[1]}T23:59:59${document.getElementById('timeZone').value}`,
-    order: 'desc',
+    order: 'asc',
     orderBy: 'conversationStart',
     paging: {
       pageSize: 100,
@@ -553,7 +561,7 @@ async function mediaTypeTotals(direction) {
   let conversationsEmail = await getConversations(1, {
     // prettier-ignore
     interval: `${document.getElementById('datepicker').value.split('/')[0]}T00:00:00${document.getElementById('timeZone').value}/${document.getElementById('datepicker').value.split('/')[1]}T23:59:59${document.getElementById('timeZone').value}`,
-    order: 'desc',
+    order: 'asc',
     orderBy: 'conversationStart',
     paging: {
       pageSize: 100,
@@ -637,7 +645,7 @@ async function mediaRecordingTotals() {
   let conversationsVoice = await getConversations(1, {
     // prettier-ignore
     interval: `${document.getElementById('datepicker').value.split('/')[0]}T00:00:00${document.getElementById('timeZone').value}/${document.getElementById('datepicker').value.split('/')[1]}T23:59:59${document.getElementById('timeZone').value}`,
-    order: 'desc',
+    order: 'asc',
     orderBy: 'conversationStart',
     paging: {
       pageSize: 100,
@@ -665,7 +673,7 @@ async function mediaRecordingTotals() {
   let conversationsMessaging = await getConversations(1, {
     // prettier-ignore
     interval: `${document.getElementById('datepicker').value.split('/')[0]}T00:00:00${document.getElementById('timeZone').value}/${document.getElementById('datepicker').value.split('/')[1]}T23:59:59${document.getElementById('timeZone').value}`,
-    order: 'desc',
+    order: 'asc',
     orderBy: 'conversationStart',
     paging: {
       pageSize: 100,
@@ -693,7 +701,7 @@ async function mediaRecordingTotals() {
   let conversationsEmail = await getConversations(1, {
     // prettier-ignore
     interval: `${document.getElementById('datepicker').value.split('/')[0]}T00:00:00${document.getElementById('timeZone').value}/${document.getElementById('datepicker').value.split('/')[1]}T23:59:59${document.getElementById('timeZone').value}`,
-    order: 'desc',
+    order: 'asc',
     orderBy: 'conversationStart',
     paging: {
       pageSize: 100,
@@ -721,7 +729,7 @@ async function mediaRecordingTotals() {
   let conversationsCallBack = await getConversations(1, {
     // prettier-ignore
     interval: `${document.getElementById('datepicker').value.split('/')[0]}T00:00:00${document.getElementById('timeZone').value}/${document.getElementById('datepicker').value.split('/')[1]}T23:59:59${document.getElementById('timeZone').value}`,
-    order: 'desc',
+    order: 'asc',
     orderBy: 'conversationStart',
     paging: {
       pageSize: 100,
