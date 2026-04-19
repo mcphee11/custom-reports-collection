@@ -179,6 +179,12 @@ async function buildTableRows(location, name, rows) {
   }
 }
 
+async function getDataTime() {
+  let time = await capi.getAnalyticsConversationsDetailsJobsAvailability()
+  const dataTime = document.getElementById('dataTime')
+  dataTime.innerHTML = new Date(time.dataAvailabilityDate)
+}
+
 async function setReportData() {
   let today = new Date()
   document.getElementById('createdDate').innerHTML = `Created on: <strong>${today}</strong>`
@@ -311,7 +317,54 @@ async function getData() {
   }
 }
 
+async function getJobResults(jobId, opts) {
+  const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
+  let conversations
+  let isComplete = false
+  while (!isComplete) {
+    try {
+      const status = await capi.getAnalyticsConversationsDetailsJob(jobId)
+      globalApiRequests++
+      if (status.state === 'FULFILLED') {
+        conversations = await capi.getAnalyticsConversationsDetailsJobResults(jobId, opts)
+        globalApiRequests++
+        // Pagination Loop on cursor
+        while (conversations.cursor) {
+          console.log('Fetching next page with cursor...')
+          const nextConversations = await capi.getAnalyticsConversationsDetailsJobResults(jobId, { cursor: conversations.cursor })
+          globalApiRequests++
+          conversations.conversations = conversations.conversations.concat(nextConversations.conversations)
+          conversations.cursor = nextConversations.cursor
+          if (!conversations.cursor) {
+            break
+          }
+        }
+        isComplete = true
+      } else if (status.state === 'QUEUED' || status.state === 'PENDING') {
+        console.log("Job still processing... waiting 5 seconds.")
+        await sleep(5000)
+      } else {
+        console.error(`Async job ended with state: ${status.state}`)
+        return null
+      }
+    } catch (err) {
+      console.error("Error during job polling:", err)
+      break
+    }
+  }
+  return conversations
+}
+
 async function getConversations(pageNumber, query) {
+  if (jobsCheck.checked) {
+    console.log('%cAsync Jobs Search', 'color: orange')
+    let jobId = await capi.postAnalyticsConversationsDetailsJobs(query)
+    globalApiRequests++
+    console.log(jobId)
+    let conversations = await getJobResults(jobId.jobId, {})
+    console.log(conversations)
+    return conversations.conversations
+  }
   query.paging.pageNumber = pageNumber
   let conversations = await capi.postAnalyticsConversationsDetailsQuery(query)
   globalApiRequests++

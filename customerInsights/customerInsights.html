@@ -50,12 +50,19 @@
       </gux-listbox>
     </gux-dropdown>
     <gux-datepicker id="datepicker" style="padding: 8px" mode="range" value="" number-of-months="2"></gux-datepicker>
+  </div>
+  <div style="display: inline-flex; width: 100%" class="header">
     <gux-button style="padding: 8px" accent="secondary" onclick="thisMonth()">This Month</gux-button>
     <gux-button style="padding: 8px" accent="secondary" onclick="last30days()">Last 30 Days</gux-button>
     <gux-button style="padding: 8px" accent="primary" onclick="getData()">Search</gux-button>
     <gux-button style="padding: 8px" accent="secondary" onclick="clearData()">Clear</gux-button>
     <gux-button id="download" style="padding: 8px; display: none" accent="ghost"
       onclick="buildPDF()">Download</gux-button>
+    <p id="dataTime" style="margin: auto; margin-right: 10px" title="The datalake availability date and time"></p>
+    <gux-form-field-checkbox style="margin: auto; margin-right: 10px">
+      <input id="jobsCheck" onClick="getDataTime()" slot="input" type="checkbox" name="jobs" value="false" />
+      <label slot="label">Async Jobs</label>
+    </gux-form-field-checkbox>
   </div>
   <div id="spinner" style="padding: 50px; display: none; position: fixed; justify-self: anchor-center">
     <gux-radial-loading id="loading" class="loading" screenreader-text="Loading..."></gux-radial-loading>
