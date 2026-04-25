@@ -317,7 +317,7 @@ async function getData() {
   }
 }
 
-async function getJobResults(jobId, opts) {
+async function getConversationsDetailsJobResults(jobId, opts) {
   const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
   let conversations
   let isComplete = false
@@ -361,7 +361,7 @@ async function getConversations(pageNumber, query) {
     let jobId = await capi.postAnalyticsConversationsDetailsJobs(query)
     globalApiRequests++
     console.log(jobId)
-    let conversations = await getJobResults(jobId.jobId, {})
+    let conversations = await getConversationsDetailsJobResults(jobId.jobId, {})
     console.log(conversations)
     return conversations.conversations
   }
@@ -853,6 +853,44 @@ async function getUsers(pageNumber) {
   return users.entities
 }
 
+async function getUsersJobResults(jobId, opts) {
+  const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
+  let users
+  let isComplete = false
+  while (!isComplete) {
+    try {
+      const status = await uapi.getAnalyticsUsersAggregatesJob(jobId)
+      globalApiRequests++
+      if (status.state === 'FULFILLED') {
+        users = await uapi.getAnalyticsUsersAggregatesJobResults(jobId, opts)
+        globalApiRequests++
+        // Pagination Loop on cursor
+        while (users.cursor) {
+          console.log('Fetching next page with cursor...')
+          const nextConversations = await uapi.getAnalyticsUsersAggregatesJobResults(jobId, { cursor: users.cursor })
+          globalApiRequests++
+          users.results = users.results.concat(nextConversations.results)
+          users.cursor = nextConversations.cursor
+          if (!users.cursor) {
+            break
+          }
+        }
+        isComplete = true
+      } else if (status.state === 'QUEUED' || status.state === 'PENDING') {
+        console.log("Job still processing... waiting 5 seconds.")
+        await sleep(5000)
+      } else {
+        console.error(`Async job ended with state: ${status.state}`)
+        return null
+      }
+    } catch (err) {
+      console.error("Error during job polling:", err)
+      break
+    }
+  }
+  return users
+}
+
 async function getUsersPerDay() {
   let usersSearch = []
   let userIds = await getUsers(1)
@@ -867,23 +905,60 @@ async function getUsersPerDay() {
     }
     let users = []
     for (const chunk of userChunks) {
-      let result = await uapi.postAnalyticsUsersAggregatesQuery({
-        // prettier-ignore
+      if (jobsCheck.checked) {
+        console.log('%cAsync Users Search', 'color: orange')
+        let jobId = await uapi.postAnalyticsUsersAggregatesJobs({
+          interval: `${document.getElementById('datepicker').value.split('/')[0]}T00:00:00${document.getElementById('timeZone').value}/${document.getElementById('datepicker').value.split('/')[1]}T23:59:59${document.getElementById('timeZone').value}`,
+          granularity: 'P1D',
+          groupBy: ['userId'],
+          metrics: ['tSystemPresence'],
+          filter: {
+            type: 'and',
+            predicates: chunk,
+          },
+        })
+        globalApiRequests++
+        console.log(jobId)
+        let result = await getUsersJobResults(jobId.jobId, {})
+        console.log(result)
+        users = users.concat(result.results)
+      } else {
+        let result = await uapi.postAnalyticsUsersAggregatesQuery({
+          // prettier-ignore
+          interval: `${document.getElementById('datepicker').value.split('/')[0]}T00:00:00${document.getElementById('timeZone').value}/${document.getElementById('datepicker').value.split('/')[1]}T23:59:59${document.getElementById('timeZone').value}`,
+          granularity: 'P1D',
+          groupBy: ['userId'],
+          metrics: ['tSystemPresence'],
+          filter: {
+            type: 'and',
+            predicates: chunk,
+          },
+        })
+        globalApiRequests++
+        users = users.concat(result.results)
+      }
+    }
+    let returnUsers = await formatUsers(users)
+    return returnUsers
+  } else {
+    if (jobsCheck.checked) {
+      console.log('%cAsync Users Search', 'color: orange')
+      let jobId = await uapi.postAnalyticsUsersAggregatesJobs({
         interval: `${document.getElementById('datepicker').value.split('/')[0]}T00:00:00${document.getElementById('timeZone').value}/${document.getElementById('datepicker').value.split('/')[1]}T23:59:59${document.getElementById('timeZone').value}`,
         granularity: 'P1D',
         groupBy: ['userId'],
         metrics: ['tSystemPresence'],
         filter: {
           type: 'and',
-          predicates: chunk,
+          predicates: usersSearch,
         },
       })
       globalApiRequests++
-      users = users.concat(result.results)
+      console.log(jobId)
+      let users = await getUsersJobResults(jobId.jobId, {})
+      console.log(users)
+      return users.results
     }
-    let returnUsers = await formatUsers(users)
-    return returnUsers
-  } else {
     let users = await uapi.postAnalyticsUsersAggregatesQuery({
       // prettier-ignore
       interval: `${document.getElementById('datepicker').value.split('/')[0]}T00:00:00${document.getElementById('timeZone').value}/${document.getElementById('datepicker').value.split('/')[1]}T23:59:59${document.getElementById('timeZone').value}`,
