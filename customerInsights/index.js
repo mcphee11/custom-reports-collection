@@ -1226,22 +1226,46 @@ function findIfSkill(interactions) {
   return ids
 }
 
-async function getRoutingUsageAgg() {
-  let response = await capi.postAnalyticsConversationsAggregatesQuery({
-    interval: `${document.getElementById('datepicker').value.split('/')[0]}T00:00:00${document.getElementById('timeZone').value}/${document.getElementById('datepicker').value.split('/')[1]}T23:59:59${document.getElementById('timeZone').value}`,
-    metrics: [
-      "nConnected"
-    ],
-    groupBy: [
-      "queueId",
-      "usedRouting"
-    ]
-  })
-  return response
+async function getRoutingConversationsDetailsJobResults(jobId, opts) {
+  const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
+  let conversations
+  let isComplete = false
+  while (!isComplete) {
+    try {
+      const status = await capi.getAnalyticsConversationsDetailsJob(jobId)
+      globalApiRequests++
+      if (status.state === 'FULFILLED') {
+        conversations = await capi.getAnalyticsConversationsDetailsJobResults(jobId, opts)
+        globalApiRequests++
+        // Pagination Loop on cursor
+        while (conversations.cursor) {
+          console.log('Fetching next page with cursor...')
+          const nextConversations = await capi.getAnalyticsConversationsDetailsJobResults(jobId, { cursor: conversations.cursor })
+          globalApiRequests++
+          conversations.conversations = conversations.conversations.concat(nextConversations.conversations)
+          conversations.cursor = nextConversations.cursor
+          if (!conversations.cursor) {
+            break
+          }
+        }
+        isComplete = true
+      } else if (status.state === 'QUEUED' || status.state === 'PENDING') {
+        console.log("Job still processing... waiting 5 seconds.")
+        await sleep(5000)
+      } else {
+        console.error(`Async job ended with state: ${status.state}`)
+        return null
+      }
+    } catch (err) {
+      console.error("Error during job polling:", err)
+      break
+    }
+  }
+  return conversations
 }
 
 async function getRoutingUsage(routingMethod) {
-  let method = await capi.postAnalyticsConversationsDetailsQuery({
+  let query = {
     interval: `${document.getElementById('datepicker').value.split('/')[0]}T00:00:00${document.getElementById('timeZone').value}/${document.getElementById('datepicker').value.split('/')[1]}T23:59:59${document.getElementById('timeZone').value}`,
     order: "desc",
     orderBy: "conversationStart",
@@ -1271,7 +1295,19 @@ async function getRoutingUsage(routingMethod) {
         ]
       }
     ],
-  })
+  }
+
+  if (jobsCheck.checked) {
+    console.log('%cAsync Jobs Search', 'color: orange')
+    let jobId = await capi.postAnalyticsConversationsDetailsJobs(query)
+    globalApiRequests++
+    console.log(jobId)
+    let conversations = await getRoutingConversationsDetailsJobResults(jobId.jobId, {})
+    console.log(conversations)
+    return conversations.conversations.length
+  }
+  let method = await capi.postAnalyticsConversationsDetailsQuery(query)
+  globalApiRequests++
   console.log(method.totalHits)
   return method.totalHits
 }
