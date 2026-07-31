@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<!-- Created as an example by https://github.com/mcphee11 Version 4.1 -->
+<html>
+
+<head>
+  <meta name="robots" content="noindex" />
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title></title>
+  <meta name="Template" content="" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Genesys CSS https://spark.genesys.com/ In PROD set a version https://www.jsdelivr.com/package/npm/genesys-spark-components -->
+  <link no-cors
+    href="https://cdn.jsdelivr.net/npm/genesys-spark-components@4.138.2/dist/genesys-webcomponents/genesys-webcomponents.min.css"
+    rel="stylesheet" />
+  <script no-cors type="module"
+    src="https://cdn.jsdelivr.net/npm/genesys-spark-components@4.138.2/dist/genesys-webcomponents/genesys-webcomponents.esm.min.js"></script>
+  <!-- custom charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+  <gux-card accent="raised" class="mm-card">
+    <h2>Customer Insights Report</h2>
+    <p id="createdDate">Created on:</p>
+    <div style="display: inline-flex; width: 100%; height: 200px">
+      <div>
+        <p>Organization:</p>
+        <p id="orgName"></p>
+        <p>Org ID:</p>
+        <p id="orgId"></p>
+        <p>Region:</p>
+        <p id="region"></p>
+      </div>
+      <div style="margin-left: 50%">
+        <p>StartDate:</p>
+        <p id="startDate"></p>
+        <p>endDate:</p>
+        <p id="endDate"></p>
+        <p>Total API Requests:</p>
+        <p id="timeZone"></p>
+      </div>
+    </div>
+  </gux-card>
+  <gux-card accent="raised" class="mm-card">
+    <h2>Mean Opinion Score (MOS)</h2>
+    <p>
+      MOS is a measure of audio quality at a specific measurement point of a voice interaction. Potential measurement
+      points are on-premise or cloud-based Edge devices. Values in the MOS column are
+      estimated average MOS scores. The estimated average MOS score for a stream is based on codec type, average jitter,
+      latency, and packet loss. Each MOS score is a number between 1 (unacceptable)
+      and 5 (excellent). Scores below 3.5 generally indicate unacceptable quality. Scores between 4.3 and 5 indicate
+      high quality.
+    </p>
+    <p>MOS is not measured for every interaction.</p>
+    <p id="mosLabel" class="mm-center"></p>
+  </gux-card>
+  <gux-card accent="raised" class="mm-card">
+    <h2>R-Factor</h2>
+    <p>
+      The R-Factor is value derived from metrics such as latency, jitter, and packet loss per ITU‑T Recommendation
+      G.107, the R-Factor value helps you quickly assess the quality-of-experience for
+      VoIP calls on your network. Typical scores range from 50 (bad) to 90 (excellent).
+    </p>
+    <p>R-Factor is not available for every interaction.</p>
+    <p id="rFactorLabel" class="mm-center"></p>
+  </gux-card>
+  <gux-card accent="raised" class="mm-card">
+    <h2>Inbound Connected Interactions</h2>
+    <div style="display: flex; align-items: center; justify-content: center">
+      <div style="width: 70%">
+        <canvas id="incomingMediaTypes" class="mm-chart"></canvas>
+      </div>
+      <div id="inboundTable" class="mm-table"></div>
+    </div>
+  </gux-card>
+  <gux-card accent="raised" class="mm-card">
+    <h2>Outbound Connected Interactions</h2>
+    <div style="display: flex; align-items: center; justify-content: center">
+      <div style="width: 70%">
+        <canvas id="outgoingMediaTypes" class="mm-chart"></canvas>
+      </div>
+      <div id="outboundTable" class="mm-table"></div>
+    </div>
+  </gux-card>
+  <gux-card accent="raised" class="mm-card">
+    <h2>Recordings</h2>
+    <div style="display: flex; align-items: center; justify-content: center">
+      <div style="width: 70%">
+        <canvas id="recordings" class="mm-chart"></canvas>
+      </div>
+      <div id="recordingsTable" class="mm-table"></div>
+    </div>
+  </gux-card>
+  <gux-card accent="raised" class="mm-card">
+    <h2>Calls Per Day</h2>
+    <canvas id="callsPerDay" class="mm-chart"></canvas>
+  </gux-card>
+  <gux-card accent="raised" class="mm-card">
+    <h2>Emails Per Day</h2>
+    <canvas id="emailsPerDay" class="mm-chart"></canvas>
+  </gux-card>
+  <gux-card accent="raised" class="mm-card">
+    <h2>Messages Per Day</h2>
+    <canvas id="messagesPerDay" class="mm-chart"></canvas>
+  </gux-card>
+  <gux-card accent="raised" class="mm-card">
+    <h2>Callbacks Per Day</h2>
+    <canvas id="callbacksPerDay" class="mm-chart"></canvas>
+  </gux-card>
+  <gux-card accent="raised" class="mm-card">
+    <h2>Interactions Per Day</h2>
+    <canvas id="interactionsPerDay" class="mm-chart"></canvas>
+  </gux-card>
+  <gux-card accent="raised" class="mm-card">
+    <h2>Users Per Day</h2>
+    <canvas id="usersPerDay" class="mm-chart"></canvas>
+  </gux-card>
+  <gux-card accent="raised" class="mm-card">
+    <h2>Organization usage</h2>
+    <p>This section shows which features are used in the organization as well as the license required to use this
+      feature.</p>
+    <p>Data is based on date range selected</p>
+    <h3>Flow usage:</h3>
+    <div id="flowUsage" class="mm-chart"></div>
+    <!--<h3>Routing usage:</h3>
+    <div id="routingUsage" class="mm-chart"></div>-->
+    <h3>Object metrics:</h3>
+    <div id="objectUsage" class="mm-chart"></div>
+  </gux-card>
+  <script>
+    "use strict";
+
+    async function buildColumnChart(destination, title, data) {
+      new Chart(document.getElementById(destination), {
+        type: 'bar',
+        data: {
+          labels: data.map((row) => row.key),
+          datasets: [
+            {
+              label: title || 'Unknown',
+              data: data.map((row) => row.count),
+            },
+          ],
+        },
+      })
+    }
+
+    async function buildTableRows(location, name, rows) {
+      for (const row of rows) {
+        let tableBody = document.getElementById(name)
+        if (!tableBody) {
+          // create the top table row if its not already there
+          console.log('Creating table')
+          let top = document.getElementById(location)
+          let guxTable = document.createElement('gux-table')
+          let table = document.createElement('table')
+          let header = document.createElement('thead')
+          let headerRow = document.createElement('tr')
+          let tbody = document.createElement('tbody')
+
+          headerRow.setAttribute('data-row-id', 'head')
+          tbody.setAttribute('id', name)
+          table.setAttribute('slot', 'data')
+          guxTable.setAttribute('resizable-columns', '')
+
+          header.appendChild(headerRow)
+          guxTable.appendChild(table)
+          table.appendChild(header)
+          table.appendChild(tbody)
+
+          // create column names on first row
+          for (const item of row) {
+            let th = document.createElement('th')
+            th.setAttribute('data-column-name', item)
+            th.style.textWrap = 'auto'
+            th.innerHTML = item
+            th.title = item
+            headerRow.appendChild(th)
+          }
+          top.appendChild(guxTable)
+          continue
+        }
+        if (tableBody) {
+          let counter = 0
+          // add data to the row
+          let tr = document.createElement('tr')
+          for (const item of row) {
+            let column = document.createElement('td')
+            if (counter != 0) {
+              column.style.textAlign = 'center'
+            }
+            if (item === '🔴') {
+              column.style.fontSize = '.6em'
+            }
+            column.innerHTML = item
+            tr.appendChild(column)
+            counter++
+          }
+          tableBody.appendChild(tr)
+        }
+      }
+    }
+
+    async function buildStackedColumnChart(voice, email, message, callback) {
+      let data = {
+        labels: voice.map((row) => row.key), //['Date-1', 'Date-2', 'Date-3', 'Date-4', 'Date-5'],
+        datasets: [
+          {
+            label: 'Call',
+            data: voice.map((row) => row.count), //[10, 20, 15, 25, 30],
+            backgroundColor: 'rgba(255, 99, 132, 0.6)', // Red with some transparency
+            borderColor: 'rgba(255, 99, 132, 1)',
+          },
+          {
+            label: 'Email',
+            data: email.map((row) => row.count),
+            backgroundColor: 'rgba(54, 162, 235, 0.6)', // Blue with some transparency
+            borderColor: 'rgba(54, 162, 235, 1)',
+          },
+          {
+            label: 'Message',
+            data: message.map((row) => row.count),
+            backgroundColor: 'rgba(255, 206, 86, 0.6)', // Yellow with some transparency
+            borderColor: 'rgba(255, 206, 86, 1)',
+          },
+          {
+            label: 'Callback',
+            data: callback.map((row) => row.count),
+            backgroundColor: 'rgba(75, 192, 192, 0.6)', // Green with some transparency
+            borderColor: 'rgb(75, 192, 1)',
+          },
+        ],
+      }
+      new Chart(document.getElementById('interactionsPerDay'), {
+        type: 'bar',
+        data: data,
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          scales: {
+            x: {
+              stacked: true,
+            },
+            y: {
+              stacked: true,
+              beginAtZero: true,
+            },
+          },
+          plugins: {
+            title: {
+              display: true,
+              text: 'Interactions',
+              font: {
+                size: 18,
+              },
+            },
+            tooltip: {
+              mode: 'index',
+              intersect: false,
+            },
+          },
+        },
+      })
+    }
+
+    // INSERTED DATA
+    CODE_INSERT
+
+
+  </script>
+</body>
+<style>
+  body {
+    max-width: 90%;
+    justify-self: center;
+  }
+
+  .mm-center {
+    text-align: center;
+    padding: 8px;
+    width: auto;
+  }
+
+  .mm-card {
+    margin: 8px;
+    width: auto;
+  }
+
+  .mm-chart {
+    max-width: 100%;
+    max-height: 100%;
+  }
+
+  .mm-table {
+    margin-left: 18px
+  }
+
+  /* Styles specifically for printing */
+  @media print {
+    .content {
+      width: auto;
+      float: none;
+    }
+
+    a::after {
+      content: ' (' attr(href) ')';
+      font-size: 80%;
+    }
+
+    .header {
+      display: none !important;
+    }
+
+    gux-card {
+      page-break-inside: avoid;
+      /* Prevent card from breaking across pages */
+    }
+
+    img {
+      max-width: 100%;
+    }
+  }
+</style>
+
+</html>
