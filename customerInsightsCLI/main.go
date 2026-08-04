@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/mypurecloud/platform-client-sdk-go/v188/platformclientv2"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 	genesys "tview/cmd"
 )
@@ -31,7 +33,7 @@ func main() {
 	flag.Parse()
 
 	if *version {
-		logText("version", "0.0.1")
+		logText("version", "0.1.0")
 		os.Exit(0)
 	}
 
@@ -47,134 +49,146 @@ func run(region, clientID, secret, startDate, endDate, timeZone string) {
 	config, err := genesys.GenesysAuth(region, clientID, secret)
 	if err != nil {
 		logText("GenesysAuth", err.Error())
-	} else {
+		return
+	}
+	logText("GenesysAuth", "Logged in to Genesys Cloud")
 
-		logText("GenesysAuth", "Logged in to Genesys Cloud")
+	var wg sync.WaitGroup
 
-		// Get Organization Details
-		msg0, orgID, orgName, err0 := genesys.GetOrganization(config)
-		if err0 != nil {
-			logText("GetOrganization", msg0)
-		} else {
-			logText("GetOrganization", msg0)
-		}
+	// Declare result variables with exact types for GO routines
+	var (
+		orgID, orgName       string
+		mosHTML, rFactorHTML string
+		inboundTotalsChart   []byte
+		outboundTotalsChart  []byte
+		inboundTotalTable    []byte
+		outboundTotalTable   []byte
+		perDayVoiceChart     []genesys.Bar
+		perDayMessageChart   []genesys.Bar
+		perDayEmailChart     []genesys.Bar
+		perDayCallbackChart  []genesys.Bar
+		perDayUsersChart     []byte
+		flowsTable           [][]string
+		allQueues            []platformclientv2.Queue
+		objectTableQueues    []string
+		routingTable         [][]string
+		mediaTypes           = []string{"voice", "message", "email", "callback"}
+		recordingCounts      = make([]int, len(mediaTypes))
+	)
 
-		// Get Mos & rFactor
-		msgMR, mosHTML, rFactorHTML, errMR := genesys.GetMosTotals(config, startDate, endDate, timeZone)
-		if errMR != nil {
-			logText("GetMosTotals", msgMR)
-		} else {
-			logText("GetMosTotals", msgMR)
+	wg.Go(func() {
+		msg, id, name, err := genesys.GetOrganization(config)
+		logText("GetOrganization", msg)
+		if err == nil {
+			orgID, orgName = id, name
 		}
+	})
 
-		// Get Interaction Totals per mediaType and direction
-		msg1, inboundTotalsChart, outboundTotalsChart, inboundTotalTable, outboundTotalTable, err1 := genesys.GetConversationTotals(config, startDate, endDate, timeZone)
-		if err1 != nil {
-			logText("GetConversationTotals", msg1)
-		} else {
-			logText("GetConversationTotals", msg1)
-		}
-		// Get Interactions per Day by mediaType
-		msg7, perDayVoiceChart, perDayMessageChart, perDayEmailChart, perDayCallbackChart, err2 := genesys.GetInteractionsPerDay(config, startDate, endDate, timeZone)
-		if err2 != nil {
-			logText("GetInteractionsPerDay", msg7)
-		} else {
-			logText("GetInteractionsPerDay", msg7)
-		}
-		// Get Total Recordings per MediaType
-		var recordingsChart []genesys.Bar
-		recordingsTable := [][]string{{"MediaType", "Interactions"}}
-		msg3, results3, err3 := genesys.GetRecordingTotals(config, startDate, endDate, timeZone, "voice")
-		if err3 != nil {
-			logText("GetRecordingTotals", msg3)
-		} else {
-			logText("GetRecordingTotals", msg3)
-			recordingsTable = append(recordingsTable, []string{"voice", strconv.Itoa(results3)})
-			recordingsChart = append(recordingsChart, genesys.Bar{Key: "voice", Count: results3})
-		}
-		msg4, results4, err4 := genesys.GetRecordingTotals(config, startDate, endDate, timeZone, "message")
-		if err4 != nil {
-			logText("GetRecordingTotals", msg4)
-		} else {
-			logText("GetRecordingTotals", msg4)
-			recordingsTable = append(recordingsTable, []string{"message", strconv.Itoa(results4)})
-			recordingsChart = append(recordingsChart, genesys.Bar{Key: "message", Count: results4})
-		}
-		msg5, results5, err5 := genesys.GetRecordingTotals(config, startDate, endDate, timeZone, "email")
-		if err5 != nil {
-			logText("GetRecordingTotals", msg5)
-		} else {
-			logText("GetRecordingTotals", msg5)
-			recordingsTable = append(recordingsTable, []string{"email", strconv.Itoa(results5)})
-			recordingsChart = append(recordingsChart, genesys.Bar{Key: "email", Count: results5})
-		}
-		msg6, results6, err6 := genesys.GetRecordingTotals(config, startDate, endDate, timeZone, "callback")
-		if err6 != nil {
-			logText("GetRecordingTotals", msg6)
-		} else {
-			logText("GetRecordingTotals", msg6)
-			recordingsTable = append(recordingsTable, []string{"callback", strconv.Itoa(results6)})
-			recordingsChart = append(recordingsChart, genesys.Bar{Key: "callback", Count: results6})
-		}
+	wg.Go(func() {
+		msg, mos, rFactor, _ := genesys.GetMosTotals(config, startDate, endDate, timeZone)
+		logText("GetMosTotals", msg)
+		mosHTML, rFactorHTML = mos, rFactor
+	})
 
-		// Get users per Day
-		msg7, perDayUsersChart, err2 := genesys.GetUsersPerDay(config, startDate, endDate, timeZone)
-		if err2 != nil {
-			logText("GetUsersPerDay", msg7)
-		} else {
-			logText("GetUsersPerDay", msg7)
-		}
+	wg.Go(func() {
+		msg, inChart, outChart, inTable, outTable, _ := genesys.GetConversationTotals(config,
+			startDate,
+			endDate, timeZone)
+		logText("GetConversationTotals", msg)
+		inboundTotalsChart, outboundTotalsChart = inChart, outChart
+		inboundTotalTable, outboundTotalTable = inTable, outTable
+	})
 
-		// Get flows used
-		msg8, flowsTable, err8 := genesys.GetFlows(config, startDate, endDate, timeZone)
-		if err8 != nil {
-			logText("GetFlows", msg8)
-		} else {
-			logText("GetFlows", msg8)
-		}
+	wg.Go(func() {
+		msg, voice, msgChart, email, callback, _ := genesys.GetInteractionsPerDay(config,
+			startDate,
+			endDate, timeZone)
+		logText("GetInteractionsPerDay", msg)
+		perDayVoiceChart, perDayMessageChart = voice, msgChart
+		perDayEmailChart, perDayCallbackChart = email, callback
+	})
 
-		// Get queues used
-		msg10, allQueues, objectTableQueues, err10 := genesys.GetObjectQueues(config, startDate, endDate, timeZone)
-		if err10 != nil {
-			logText("GetQueuesTable", msg10)
-		} else {
-			logText("GetQueuesTable", msg10)
-		}
+	// Get Recording Totals (4 media types)
+	for i, mediaType := range mediaTypes {
+		wg.Go(func() {
+			msg, count, err := genesys.GetRecordingTotals(config, startDate, endDate, timeZone,
+				mediaType)
+			logText("GetRecordingTotals ("+mediaType+")", msg)
+			if err == nil {
+				recordingCounts[i] = count
+			}
+		})
+	}
 
-		// Get Routing Used
-		msg9, routingTable, err9 := genesys.GetRouting(config, allQueues, startDate, endDate, timeZone)
-		if err9 != nil {
-			logText("GetRouting", msg9)
-		} else {
-			logText("GetRouting", msg9)
-		}
+	wg.Go(func() {
+		msg, users, _ := genesys.GetUsersPerDay(config, startDate, endDate, timeZone)
+		logText("GetUsersPerDay", msg)
+		perDayUsersChart = users
+	})
 
-		// Create output table with headers
-		objectTable := [][]string{{"Object", "Total Built", "Total Used", "In Use"}}
+	wg.Go(func() {
+		msg, flows, _ := genesys.GetFlows(config, startDate, endDate, timeZone)
+		logText("GetFlows", msg)
+		flowsTable = flows
+	})
+
+	// Get Queues & Dependent Routing (Chained)
+	wg.Go(func() {
+		msgQueues, queues, objQueues, err := genesys.GetObjectQueues(config, startDate, endDate,
+			timeZone)
+		logText("GetObjectQueues", msgQueues)
+		if err == nil {
+			allQueues, objectTableQueues = queues, objQueues
+
+			// GetRouting depends on allQueues
+			msgRouting, routing, _ := genesys.GetRouting(config, allQueues, startDate, endDate,
+				timeZone)
+			logText("GetRouting", msgRouting)
+			routingTable = routing
+		}
+	})
+
+	wg.Wait()
+
+	// Post-processing: Assemble recording results
+	var recordingsChart []genesys.Bar
+	recordingsTable := [][]string{{"MediaType", "Interactions"}}
+	for i, mType := range mediaTypes {
+		recordingsTable = append(recordingsTable, []string{mType,
+			strconv.Itoa(recordingCounts[i])})
+		recordingsChart = append(recordingsChart, genesys.Bar{Key: mType, Count: recordingCounts[i]})
+	}
+
+	objectTable := [][]string{{"Object", "Total Built", "Total Used", "In Use"}}
+	if len(objectTableQueues) > 0 {
 		objectTable = append(objectTable, objectTableQueues)
+	}
 
-		jsonRecordingsChart, _ := json.Marshal(recordingsChart)
-		jsonRecordingsTable, _ := json.Marshal(recordingsTable)
-		jsonPerDayVoiceChart, _ := json.Marshal(perDayVoiceChart)
-		jsonPerDayMessageChart, _ := json.Marshal(perDayMessageChart)
-		jsonPerDayEmailChart, _ := json.Marshal(perDayEmailChart)
-		jsonPerDayCallbackChart, _ := json.Marshal(perDayCallbackChart)
-		jsonFlowsTable, _ := json.Marshal(flowsTable)
-		jsonRoutingTable, _ := json.Marshal(routingTable)
-		jsonObjectTable, _ := json.Marshal(objectTable)
+	jsonRecordingsChart, _ := json.Marshal(recordingsChart)
+	jsonRecordingsTable, _ := json.Marshal(recordingsTable)
+	jsonPerDayVoiceChart, _ := json.Marshal(perDayVoiceChart)
+	jsonPerDayMessageChart, _ := json.Marshal(perDayMessageChart)
+	jsonPerDayEmailChart, _ := json.Marshal(perDayEmailChart)
+	jsonPerDayCallbackChart, _ := json.Marshal(perDayCallbackChart)
+	jsonFlowsTable, _ := json.Marshal(flowsTable)
+	jsonRoutingTable, _ := json.Marshal(routingTable)
+	jsonObjectTable, _ := json.Marshal(objectTable)
 
-		htmlMsg, err := genesys.BuildIndexHTMLFile(
-			orgID, orgName, region, startDate, endDate, timeZone,
-			mosHTML, rFactorHTML,
-			inboundTotalsChart, outboundTotalsChart,
-			inboundTotalTable, outboundTotalTable,
-			jsonRecordingsChart, jsonRecordingsTable,
-			jsonPerDayVoiceChart, jsonPerDayMessageChart, jsonPerDayEmailChart, jsonPerDayCallbackChart,
-			perDayUsersChart,
-			jsonFlowsTable, jsonRoutingTable, jsonObjectTable)
-		if err != nil {
-			logText("BuildIndexHtmlFile", fmt.Sprint(err))
-		}
+	// Build final HTML file
+	htmlMsg, errBuild := genesys.BuildIndexHTMLFile(
+		orgID, orgName, region, startDate, endDate, timeZone,
+		mosHTML, rFactorHTML,
+		inboundTotalsChart, outboundTotalsChart,
+		inboundTotalTable, outboundTotalTable,
+		jsonRecordingsChart, jsonRecordingsTable,
+		jsonPerDayVoiceChart, jsonPerDayMessageChart, jsonPerDayEmailChart,
+		jsonPerDayCallbackChart,
+		perDayUsersChart,
+		jsonFlowsTable, jsonRoutingTable, jsonObjectTable)
+
+	if errBuild != nil {
+		logText("BuildIndexHtmlFile", fmt.Sprint(errBuild))
+	} else {
 		logText("BuildIndexHtmlFile", htmlMsg)
 	}
 }

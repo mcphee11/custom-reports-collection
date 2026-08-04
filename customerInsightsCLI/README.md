@@ -16,6 +16,8 @@ While if you have GO installed you can run this from the source, I have also com
 
 Each file is in a folder in this repo. In case you want to know how to build these from a local source you have after editing the source maybe in your own fork have a look at the `build.sh` file I have that I use to build these files.
 
+If you do want to compile the source yourself you will need to have GO installed with `version 1.24+` I built and tested this with `version 1.26.2`.
+
 ## CLI Options
 
 - clientId: This is the `clientId` of the client credentials of the OAuth token created in Genesys Cloud
