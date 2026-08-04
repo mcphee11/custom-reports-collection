@@ -1,6 +1,8 @@
 package genesys
 
 import (
+	"time"
+
 	"github.com/mypurecloud/platform-client-sdk-go/v188/platformclientv2"
 )
 
@@ -31,6 +33,12 @@ func GenesysAuth(region, clientID, secret string) (conf *platformclientv2.Config
 	// Do Genesys Cloud OAuth
 	config := platformclientv2.GetDefaultConfiguration()
 	config.BasePath = "https://api." + region
+	config.RetryConfiguration = &platformclientv2.RetryConfiguration{
+		RetryWaitMin: 5 * time.Second,
+		RetryWaitMax: 60 * time.Second,
+		RetryMax:     5,
+	}
+	config.AutomaticTokenRefresh = true
 	if err := config.AuthorizeClientCredentials(clientID, secret); err != nil {
 		return config, err
 	}
