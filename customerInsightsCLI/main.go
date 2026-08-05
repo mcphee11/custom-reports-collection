@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"sync"
 	"time"
+	_ "time/tzdata"
+
 	genesys "tview/cmd"
 )
 
@@ -33,7 +35,7 @@ func main() {
 	flag.Parse()
 
 	if *version {
-		logText("version", "0.1.0")
+		logText("version", "0.1.1")
 		os.Exit(0)
 	}
 
