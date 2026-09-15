@@ -8,6 +8,8 @@ Each example will be in its own folder to allow me to create specific notes in a
 
 ## OAuth
 
+### NOTE: auth now uses popup for iFrame support. So ensure you have the hosted popup.html page also hosted. Details of this are in the `user snippet` readMe.md file.
+
 The OAuth for these examples follows the `user snippet` OAuth method which is to use the `Code Authorization / PKCE` type. You will also need to se your redirect for example when workgin locally
 
 ```

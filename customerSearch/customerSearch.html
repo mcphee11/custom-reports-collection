@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Created as an example by https://github.com/mcphee11 Version 4.1 -->
+<!-- Created as an example by https://github.com/mcphee11 Version 5.0 -->
 <html>
 
 <head>
@@ -15,8 +15,8 @@
     rel="stylesheet" />
   <script no-cors type="module"
     src="https://cdn.jsdelivr.net/npm/genesys-spark-components@latest/dist/genesys-webcomponents/genesys-webcomponents.esm.min.js"></script>
-  <!-- Genesys SDK info https://developer.genesys.cloud/  In PROD set a version -->
-  <script src="https://sdk-cdn.mypurecloud.com/javascript/latest/purecloud-platform-client-v2.min.js"></script>
+  <!-- Genesys SDK info https://mypurecloud.github.io/platform-client-sdk-javascript/  check for latest version -->
+  <script src="https://sdk-cdn.mypurecloud.com/javascript/261.0.0/purecloud-platform-client-v2.min.js"></script>
   <script src="https://sdk-cdn.mypurecloud.com/client-apps/2.6.7/purecloud-client-app-sdk.js"></script>
 </head>
 
@@ -99,6 +99,7 @@
       try {
         client.setEnvironment(gc_region)
         client.setPersistSettings(true, '_mm_')
+        client.updateAuthPopupConfiguration({usePopup: true})
 
         console.log('%cLogging in to Genesys Cloud', 'color: green')
         await client.loginPKCEGrant(gc_clientId, gc_redirectUrl, {})

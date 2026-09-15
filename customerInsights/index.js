@@ -30,6 +30,7 @@ async function start() {
   try {
     client.setEnvironment(gc_region)
     client.setPersistSettings(true, '_mm_')
+    client.updateAuthPopupConfiguration({ usePopup: true })
     console.log('%cLogging in to Genesys Cloud', 'color: green')
     await client.loginPKCEGrant(gc_clientId, gc_redirectUrl, {})
     getUTCOffset()
