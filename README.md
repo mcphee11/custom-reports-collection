@@ -55,7 +55,7 @@ standalone
 Set the `Iframe Sandbox Options` as
 
 ```
-allow-scripts,allow-same-origin,allow-forms,allow-modals,allow-downloads
+allow-scripts,allow-same-origin,allow-forms,allow-modals,allow-downloads,allow-popups
 ```
 
 #### NOTE: Most of the above will be there by default but without `allow-downloads` the CSV download option will not work.
